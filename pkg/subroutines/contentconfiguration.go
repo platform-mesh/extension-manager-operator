@@ -9,6 +9,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/openmfp/extension-content-operator/api/v1alpha1"
+	"github.com/openmfp/extension-content-operator/pkg/validation"
 	"github.com/openmfp/golang-commons/controller/lifecycle"
 	"github.com/openmfp/golang-commons/errors"
 	"github.com/openmfp/golang-commons/logger"
@@ -19,17 +20,16 @@ const (
 )
 
 type ContentConfigurationSubroutine struct {
-	client *http.Client
+	client    *http.Client
+	validator validation.ExtensionConfiguration
 }
 
-func NewContentConfigurationSubroutine() *ContentConfigurationSubroutine {
+func NewContentConfigurationSubroutine(validator validation.ExtensionConfiguration,
+	client *http.Client) *ContentConfigurationSubroutine {
 	return &ContentConfigurationSubroutine{
-		client: http.DefaultClient,
+		client:    client,
+		validator: validator,
 	}
-}
-
-func (r *ContentConfigurationSubroutine) WithClient(client *http.Client) {
-	r.client = client
 }
 
 func (r *ContentConfigurationSubroutine) GetName() string {
@@ -53,10 +53,12 @@ func (r *ContentConfigurationSubroutine) Process(
 
 	instance := runtimeObj.(*v1alpha1.ContentConfiguration)
 
+	var contentType string
 	var rawConfig []byte
 	// InlineConfiguration has higher priority than RemoteConfiguration
 	switch {
 	case instance.Spec.InlineConfiguration.Content != "":
+		contentType = instance.Spec.InlineConfiguration.ContentType
 		rawConfig = []byte(instance.Spec.InlineConfiguration.Content)
 	case instance.Spec.RemoteConfiguration.URL != "":
 		bytes, err, retry := r.getRemoteConfig(instance.Spec.RemoteConfiguration.URL)
@@ -65,13 +67,18 @@ func (r *ContentConfigurationSubroutine) Process(
 
 			return ctrl.Result{}, errors.NewOperatorError(err, retry, true)
 		}
+		contentType = instance.Spec.RemoteConfiguration.ContentType
 		rawConfig = bytes
 	default:
 		return ctrl.Result{}, errors.NewOperatorError(errors.New("no configuration provided"), false, true)
 	}
 
-	// TODO replace it with validation function
-	validatedConfig := string(rawConfig)
+	validatedConfig, err := r.validator.Validate(rawConfig, contentType)
+	if err != nil {
+		log.Err(err).Msg("failed to validate configuration")
+
+		return ctrl.Result{}, errors.NewOperatorError(err, false, true)
+	}
 
 	instance.Status.ConfigurationResult = validatedConfig
 

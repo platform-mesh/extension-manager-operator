@@ -1,6 +1,7 @@
 package validation
 
 import (
+	_ "embed"
 	"encoding/json"
 	"fmt"
 
@@ -10,35 +11,51 @@ import (
 	"github.com/pkg/errors"
 )
 
-const (
-	ErrorEmptyInput       = "empty input provided"
-	ErrorNoValidator      = "no validator found for content type"
-	ErrorMarshalJSON      = "error marshaling input to JSON"
-	ErrorValidatingJSON   = "error validating JSON data"
-	ErrorDocumentInvalid  = "The document is not valid:\n%s"
-	ErrorRequiredField    = "field '%s' is required"
-	ErrorInvalidFieldType = "field '%s' is invalid, got '%s', expected '%s'"
+var (
+	ErrorEmptyInput       = errors.New("empty input provided")
+	ErrorNoValidator      = errors.New("no validator found for content type")
+	ErrorMarshalJSON      = errors.New("error marshaling input to JSON")
+	ErrorValidatingJSON   = errors.New("error validating JSON data")
+	ErrorDocumentInvalid  = errors.New("The document is not valid:\n%s")
+	ErrorRequiredField    = errors.New("field '%s' is required")
+	ErrorInvalidFieldType = errors.New("field '%s' is invalid, got '%s', expected '%s'")
 )
 
-type contentConfiguration struct{}
-
-func NewContentConfiguration() ContentConfigurationInterface {
-	return &contentConfiguration{}
+type contentConfiguration struct {
+	schema []byte
 }
 
-func (cC *contentConfiguration) Validate(schema, input []byte, contentType string) (string, error) {
+//go:embed default_schema_core.openmfp.io_contentconfigurations_gen1.json
+var schemaJSON []byte
+
+func NewContentConfiguration() ExtensionConfiguration {
+
+	return &contentConfiguration{
+		schema: schemaJSON,
+	}
+}
+
+func (cC *contentConfiguration) LoadSchema(schema []byte) error {
+	if len(schema) == 0 {
+		return ErrorEmptyInput
+	}
+	cC.schema = schema
+	return nil
+}
+
+func (cC *contentConfiguration) Validate(input []byte, contentType string) (string, error) {
 	if len(input) == 0 {
-		return "", errors.New(ErrorEmptyInput)
+		return "", ErrorEmptyInput
 	}
 
 	switch contentType {
 	case "json":
-		return validateJSON(schema, input)
+		return validateJSON(cC.schema, input)
 	case "yaml":
-		return validateYAML(schema, input)
+		return validateYAML(cC.schema, input)
 	default:
 
-		return "", errors.New(ErrorNoValidator)
+		return "", ErrorNoValidator
 	}
 }
 
@@ -62,7 +79,7 @@ func validateYAML(schema, input []byte) (string, error) {
 func validateSchema(schema []byte, input interface{}) (string, error) {
 	jsonBytes, err := json.Marshal(input)
 	if err != nil {
-		return "", errors.New(ErrorMarshalJSON)
+		return "", ErrorMarshalJSON
 	}
 
 	schemaLoader := gojsonschema.NewBytesLoader(schema)
@@ -70,7 +87,7 @@ func validateSchema(schema []byte, input interface{}) (string, error) {
 
 	result, err := gojsonschema.Validate(schemaLoader, documentLoader)
 	if err != nil {
-		return "", errors.New(ErrorValidatingJSON)
+		return "", ErrorValidatingJSON
 	}
 
 	if !result.Valid() {
@@ -78,10 +95,10 @@ func validateSchema(schema []byte, input interface{}) (string, error) {
 		for _, desc := range result.Errors() {
 			switch desc.Type() {
 			case "required":
-				errorsAccumulator = append(errorsAccumulator, fmt.Sprintf(ErrorRequiredField, desc.Field()))
+				errorsAccumulator = append(errorsAccumulator, fmt.Sprintf(ErrorRequiredField.Error(), desc.Field()))
 			case "invalid_type":
 				errorsAccumulator = append(errorsAccumulator, fmt.Sprintf(
-					ErrorInvalidFieldType,
+					ErrorInvalidFieldType.Error(),
 					desc.Field(),
 					desc.Details()["type"],
 					desc.Details()["expected"]))
@@ -89,7 +106,7 @@ func validateSchema(schema []byte, input interface{}) (string, error) {
 				errorsAccumulator = append(errorsAccumulator, desc.String())
 			}
 		}
-		return "", errors.Errorf(ErrorDocumentInvalid, fmt.Sprint(errorsAccumulator))
+		return "", errors.Errorf(ErrorDocumentInvalid.Error(), fmt.Sprint(errorsAccumulator))
 	}
 
 	return string(jsonBytes), nil

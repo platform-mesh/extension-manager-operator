@@ -1,0 +1,12 @@
+apiVersion: core.openmfp.io/v1alpha1
+kind: ContentConfiguration
+metadata:
+  name: remote
+  namespace: default
+spec:
+  remoteConfiguration:
+    authentication:
+      secretRef:
+        name: "your-secret-name"
+      type: "Bearer"
+    url: "https://example.com/fetch-configuration"
