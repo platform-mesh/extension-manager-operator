@@ -5,9 +5,8 @@ import (
 	"log"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-
 	"github.com/openmfp/extension-content-operator/pkg/validation/validation_test"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestValidate(t *testing.T) {
@@ -107,6 +106,46 @@ func TestValidate(t *testing.T) {
 			expected:    validation_test.GetJSONFixture(validation_test.GetluigiConfigFragment()),
 			expectError: false,
 		},
+		{
+			name:        "test_luigiConfigFragment",
+			input:       validation_test.GetYAMLFixture(validation_test.GetValidYaml_targetAppConfig_viewGroup()),
+			contentType: "yaml",
+			expected:    validation_test.GetYAMLFixture(validation_test.GetValidYaml_targetAppConfig_viewGroup()),
+			expectError: false,
+			schema:      nil,
+		},
+		{
+			name:        "test_node_category_string",
+			input:       validation_test.GetYAMLFixture(validation_test.GetValidYAML_node_category_string()),
+			contentType: "yaml",
+			expected:    validation_test.GetYAMLFixture(validation_test.GetValidYAML_node_category_string()),
+			expectError: false,
+			schema:      nil,
+		},
+		{
+			name:        "test_node_category_object",
+			input:       validation_test.GetYAMLFixture(validation_test.GetValidYAML_node_category_object()),
+			contentType: "yaml",
+			expected:    validation_test.GetYAMLFixture(validation_test.GetValidYAML_node_category_object()),
+			expectError: false,
+			schema:      nil,
+		},
+		{
+			name:        "test_node_category_invalidobject",
+			input:       validation_test.GetYAMLFixture(validation_test.GetInalidYAML_node_category_object()),
+			contentType: "yaml",
+			expected:    "",
+			expectError: true,
+			schema:      nil,
+		},
+		{
+			name:        "test_luigiConfigFragment",
+			input:       validation_test.GetYAMLFixture(validation_test.GetValidYaml_targetAppConfig_viewGroup2()),
+			contentType: "yaml",
+			expected:    validation_test.GetYAMLFixture(validation_test.GetValidYaml_targetAppConfig_viewGroup2()),
+			expectError: false,
+			schema:      nil,
+		},
 	}
 
 	cC := NewContentConfiguration()
@@ -147,8 +186,8 @@ func Test_validateSchema(t *testing.T) {
 			input: ContentConfigurationTypeMock{
 				Name: 1, // wrong type
 			},
-			expectedErrMsg: "The document is not valid:\n[luigiConfigFragment is required field 'name'" +
-				" is invalid, got '%!s(<nil>)'",
+			expectedErrMsg: "The document is not valid:\n[luigiConfigFragment is required (root):" +
+				" Additional property surname is not allowed field 'name' is invalid, got '%!s(<nil>)', expected 'string']",
 		},
 		{
 			name: "Invalid_JSON",
@@ -178,7 +217,7 @@ func Test_validateSchema(t *testing.T) {
 					},
 				},
 			},
-			expectedErrMsg: "The document is not valid:\n[name is required]",
+			expectedErrMsg: "The document is not valid:\n[(root): Must validate one and only one schema (oneOf) name is required]",
 		},
 		{
 			name: "nodes_is_required",
@@ -186,7 +225,8 @@ func Test_validateSchema(t *testing.T) {
 				Name:                "overview",
 				LuigiConfigFragment: LuigiConfigFragment{},
 			},
-			expectedErrMsg: "The document is not valid:\n[nodes is required]",
+			expectedErrMsg: "The document is not valid:\n[luigiConfigFragment.data: " +
+				"Must validate one and only one schema (oneOf) nodes is required]",
 		},
 		{
 			name: "textDictionary_is_required",
@@ -205,26 +245,8 @@ func Test_validateSchema(t *testing.T) {
 					},
 				},
 			},
-			expectedErrMsg: "The document is not valid:\n[textDictionary is required]",
-		},
-		{
-			name: "locale_is_required",
-			input: ContentConfiguration{
-				Name: "overview",
-				LuigiConfigFragment: LuigiConfigFragment{
-					Data: LuigiConfigData{
-						Nodes: []Node{
-							{
-								EntityType: "global",
-							},
-						},
-						Texts: []Text{{
-							TextDictionary: map[string]string{"hello": "Hallo"},
-						}},
-					},
-				},
-			},
-			expectedErrMsg: "The document is not valid:\n[locale is required]",
+			expectedErrMsg: "The document is not valid:\n[field 'luigiConfigFragment.data.texts.0.textDictionary'" +
+				" is invalid, got '%!s(<nil>)', expected 'object']",
 		},
 	}
 
@@ -243,7 +265,7 @@ func Test_validateSchema(t *testing.T) {
 }
 
 func getJSONSchemaFixture() []byte {
-	schemaFilePath := "./default_schema_core.openmfp.io_contentconfigurations_gen1.json"
+	schemaFilePath := "./schema/schema_autogen.json"
 	schemaJSON, err := loadSchemaJSONFromFile(schemaFilePath)
 	if err != nil {
 		log.Fatalf("failed to load schema JSON from file: %v", err)

@@ -1,0 +1,374 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/openmfp/extension-content-operator/pkg/validation/content-configuration",
+  "$ref": "#/$defs/ContentConfiguration",
+  "$defs": {
+    "Category": {
+      "properties": {
+        "label": {
+          "type": "string"
+        },
+        "icon": {
+          "type": "string"
+        },
+        "collapsible": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "ContentConfiguration": {
+      "oneOf": [
+        {
+          "required": [
+            "name"
+          ],
+          "title": "string"
+        }
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "contentType": {
+          "type": "string"
+        },
+        "luigiConfigFragment": {
+          "$ref": "#/$defs/LuigiConfigFragment"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "luigiConfigFragment"
+      ]
+    },
+    "DefineEntity": {
+      "properties": {
+        "id": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "LuigiConfigData": {
+      "oneOf": [
+        {
+          "required": [
+            "nodes"
+          ],
+          "title": "array"
+        }
+      ],
+      "properties": {
+        "nodeDefaults": {
+          "$ref": "#/$defs/NodeDefaults"
+        },
+        "nodes": {
+          "items": {
+            "$ref": "#/$defs/Node"
+          },
+          "type": "array"
+        },
+        "texts": {
+          "items": {
+            "$ref": "#/$defs/Text"
+          },
+          "type": "array"
+        },
+        "targetAppConfig": {
+          "$ref": "#/$defs/TargetAppConfig"
+        },
+        "viewGroup": {
+          "$ref": "#/$defs/ViewGroup"
+        },
+        "userSettings": {
+          "$ref": "#/$defs/UserSettings"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "LuigiConfigFragment": {
+      "oneOf": [
+        {
+          "required": [
+            "data"
+          ],
+          "title": "object"
+        }
+      ],
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/LuigiConfigData"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "Node": {
+      "properties": {
+        "entityType": {
+          "type": "string"
+        },
+        "pathSegment": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "icon": {
+          "type": "string"
+        },
+        "category": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Category"
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "url": {
+          "type": "string"
+        },
+        "hideFromNav": {
+          "type": "boolean"
+        },
+        "visibleForFeatureToggles": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "virtualTree": {
+          "type": "boolean"
+        },
+        "requiredIFramePermissions": {
+          "anyOf": [
+            {
+              "type": "object"
+            }
+          ]
+        },
+        "compound": {
+          "anyOf": [
+            {
+              "type": "object"
+            }
+          ]
+        },
+        "initialRoute": {
+          "type": "string"
+        },
+        "layoutConfig": {
+          "anyOf": [
+            {
+              "type": "object"
+            }
+          ]
+        },
+        "context": {
+          "anyOf": [
+            {
+              "type": "object"
+            }
+          ]
+        },
+        "webcomponent": {
+          "$ref": "#/$defs/Webcomponent"
+        },
+        "loadingIndicator": {
+          "anyOf": [
+            {
+              "type": "object"
+            }
+          ]
+        },
+        "defineEntity": {
+          "$ref": "#/$defs/DefineEntity"
+        },
+        "keepSelectedForChildren": {
+          "type": "boolean"
+        },
+        "children": {
+          "items": {
+            "$ref": "#/$defs/Node"
+          },
+          "type": "array"
+        },
+        "urlSuffix": {
+          "type": "string"
+        },
+        "hideSideNav": {
+          "type": "boolean"
+        },
+        "tabNav": {
+          "type": "boolean"
+        },
+        "showBreadcrumbs": {
+          "type": "boolean"
+        },
+        "dxpOrder": {
+          "type": "integer"
+        },
+        "order": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "NodeDefaults": {
+      "properties": {
+        "entityType": {
+          "type": "string"
+        },
+        "isolateView": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "SapIntegration": {
+      "properties": {
+        "navMode": {
+          "type": "string"
+        },
+        "urlTemplateId": {
+          "type": "string"
+        },
+        "urlTemplateParams": {
+          "$ref": "#/$defs/UrlTemplateParams"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "Setting": {
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "style": {
+          "type": "string"
+        },
+        "isEditable": {
+          "type": "boolean"
+        },
+        "options": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "TargetAppConfig": {
+      "properties": {
+        "_version": {
+          "type": "string"
+        },
+        "sap.integration": {
+          "$ref": "#/$defs/SapIntegration"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "Text": {
+      "properties": {
+        "locale": {
+          "type": "string"
+        },
+        "textDictionary": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "textDictionary"
+      ]
+    },
+    "UrlTemplateParams": {
+      "properties": {
+        "query": true
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "UserGroupsSetting": {
+      "properties": {
+        "label": {
+          "type": "string"
+        },
+        "sublabel": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "icon": {
+          "type": "string"
+        },
+        "viewUrl": {
+          "type": "string"
+        },
+        "initials": {
+          "type": "string"
+        },
+        "settings": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Setting"
+          },
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "UserSettings": {
+      "properties": {
+        "groups": {
+          "additionalProperties": {
+            "$ref": "#/$defs/UserGroupsSetting"
+          },
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "ViewGroup": {
+      "properties": {
+        "preloadSuffix": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "Webcomponent": {
+      "properties": {
+        "selfRegistered": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    }
+  }
+}
