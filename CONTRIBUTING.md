@@ -19,7 +19,11 @@ You are welcome to contribute with your pull requests. These steps explain the c
 
 > **NOTE:** You should always add tests if you are adding code to our repository.
 
-To let tests run locally, run `go test ./...` in the root directory of the repository.
+To let tests run locally, you can use the Taskfile:
+```sh
+task test
+task cover
+```
 
 ## Issues
 We use GitHub issues to track bugs. Please ensure your description is
