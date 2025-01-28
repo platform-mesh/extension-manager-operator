@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	ctrl "sigs.k8s.io/controller-runtime"
 
@@ -59,6 +60,8 @@ func (r *ContentConfigurationSubroutine) Process(
 
 	instance := runtimeObj.(*v1alpha1.ContentConfiguration)
 
+	log.Debug().Str("name", instance.Name).Msg("processing content configuration")
+
 	var contentType string
 	var rawConfig []byte
 	// InlineConfiguration has higher priority than RemoteConfiguration
@@ -73,6 +76,7 @@ func (r *ContentConfigurationSubroutine) Process(
 
 			return ctrl.Result{}, errors.NewOperatorError(err, retry, true)
 		}
+		log.Info().Msg("fetched remote configuration")
 		contentType = instance.Spec.RemoteConfiguration.ContentType
 		rawConfig = bytes
 	default:
@@ -89,7 +93,7 @@ func (r *ContentConfigurationSubroutine) Process(
 			Message: merr.Error(),
 		}
 		meta.SetStatusCondition(&instance.Status.Conditions, condition)
-		return ctrl.Result{}, nil
+		return ctrl.Result{RequeueAfter: 5 * time.Minute}, nil
 	} else {
 		condition := apimachinery.Condition{
 			Type:    ValidationConditionType,
@@ -101,7 +105,7 @@ func (r *ContentConfigurationSubroutine) Process(
 	}
 
 	instance.Status.ConfigurationResult = validatedConfig
-	return ctrl.Result{}, nil
+	return ctrl.Result{RequeueAfter: 5 * time.Minute}, nil
 }
 
 // Do makes an HTTP request to the specified URL.
