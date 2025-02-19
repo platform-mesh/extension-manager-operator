@@ -3,6 +3,10 @@
 
 # OpenMFP - Extension Manager Operator
 
+![Build Status](https://github.com/openmfp/extension-manager-operator/actions/workflows/pipeline.yml/badge.svg)
+[![REUSE status](
+https://api.reuse.software/badge/github.com/openmfp/extension-manager-operator)](https://api.reuse.software/info/github.com/openmfp/extension-manager-operator)
+
 ## Description
 
 The extension-manager-operator implements the lifecycle management of a Kubernetes CRD `ContentConfiguration` resource, which is a Kubernetes Resource/API for configuration of Micro Frontends in OpenMFP.
@@ -42,4 +46,4 @@ We as members, contributors, and leaders pledge to make participation in our com
 
 ## Licensing
 
-Copyright 2024 SAP SE or an SAP affiliate company and OpenMFP contributors. Please see our [LICENSE](LICENSE) for copyright and license information. Detailed information including third-party components and their licensing/copyright information is available [via the REUSE tool](https://api.reuse.software/info/github.com/openmfp/extension-manager-operator).
+Copyright 2025 SAP SE or an SAP affiliate company and OpenMFP contributors. Please see our [LICENSE](LICENSE) for copyright and license information. Detailed information including third-party components and their licensing/copyright information is available [via the REUSE tool](https://api.reuse.software/info/github.com/openmfp/extension-manager-operator).
