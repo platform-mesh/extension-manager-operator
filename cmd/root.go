@@ -64,6 +64,11 @@ func init() { // coverage-ignore
 }
 
 func initConfig() {
+
+	v.SetDefault("is-local", false)
+	v.SetDefault("server-port", "8088")
+	v.SetDefault("subroutines-content-configuration-enabled", true)
+
 	// Parse environment variables into the Config struct
 	if err := v.Unmarshal(&defaultCfg); err != nil {
 		setupLog.Error(err, "Unable to decode into struct")
@@ -81,10 +86,6 @@ func initConfig() {
 		setupLog.Error(err, "Unable to decode into struct")
 		os.Exit(1)
 	}
-
-	v.SetDefault("is-local", false)
-	v.SetDefault("server-port", "8088")
-	v.SetDefault("subroutines-content-configuration-enabled", true)
 }
 
 func initLog() { // coverage-ignore
