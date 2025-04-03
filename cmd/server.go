@@ -21,7 +21,6 @@ import (
 	"net/http"
 	"time"
 
-	openmfpconfig "github.com/openmfp/golang-commons/config"
 	openmfpcontext "github.com/openmfp/golang-commons/context"
 	"github.com/spf13/cobra"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
@@ -35,10 +34,6 @@ var serverCmd = &cobra.Command{
 	Use:   "server",
 	Short: "server with configuration validation endpoint",
 	Run:   RunServer,
-}
-
-func init() {
-	openmfpconfig.BindConfigToFlags(v, serverCmd, &serverCfg)
 }
 
 func RunServer(cmd *cobra.Command, args []string) { // coverage-ignore

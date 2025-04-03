@@ -50,8 +50,16 @@ func init() { // coverage-ignore
 		os.Exit(1)
 	}
 
-	openmfpconfig.BindConfigToFlags(v, operatorCmd, &operatorCfg)
-	openmfpconfig.BindConfigToFlags(v, serverCmd, &serverCfg)
+	err = openmfpconfig.BindConfigToFlags(v, operatorCmd, &operatorCfg)
+	if err != nil {
+		setupLog.Error(err, "Failed to bind config to flags")
+		os.Exit(1)
+	}
+	err = openmfpconfig.BindConfigToFlags(v, serverCmd, &serverCfg)
+	if err != nil {
+		setupLog.Error(err, "Failed to bind config to flags")
+		os.Exit(1)
+	}
 
 }
 
