@@ -65,7 +65,19 @@ func init() { // coverage-ignore
 
 func initConfig() {
 	// Parse environment variables into the Config struct
+	if err := v.Unmarshal(&defaultCfg); err != nil {
+		setupLog.Error(err, "Unable to decode into struct")
+		os.Exit(1)
+	}
+
+	// Parse environment variables into the Config struct
 	if err := v.Unmarshal(&operatorCfg); err != nil {
+		setupLog.Error(err, "Unable to decode into struct")
+		os.Exit(1)
+	}
+
+	// Parse environment variables into the Config struct
+	if err := v.Unmarshal(&serverCfg); err != nil {
 		setupLog.Error(err, "Unable to decode into struct")
 		os.Exit(1)
 	}
