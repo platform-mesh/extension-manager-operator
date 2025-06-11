@@ -9,12 +9,13 @@ import (
 	"testing"
 
 	"github.com/hashicorp/go-multierror"
-	"github.com/openmfp/extension-manager-operator/pkg/validation"
-	"github.com/openmfp/extension-manager-operator/pkg/validation/mocks"
 	"github.com/openmfp/golang-commons/errors"
 	"github.com/openmfp/golang-commons/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+
+	"github.com/openmfp/extension-manager-operator/pkg/validation"
+	"github.com/openmfp/extension-manager-operator/pkg/validation/mocks"
 )
 
 type responseError struct {
@@ -44,7 +45,10 @@ func TestHandlerValidate_Error(t *testing.T) {
 	decoder := json.NewDecoder(resp.Body)
 	decoder.DisallowUnknownFields()
 	err := decoder.Decode(r)
-	defer resp.Body.Close()
+	defer func() {
+		err := resp.Body.Close()
+		assert.NoError(t, err)
+	}()
 
 	assert.Nil(t, err)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
@@ -65,7 +69,10 @@ func TestHandlerValidate_Success(t *testing.T) {
 	handler.HandlerValidate(w, req)
 
 	resp := w.Result()
-	defer resp.Body.Close()
+	defer func() {
+		err := resp.Body.Close()
+		assert.NoError(t, err)
+	}()
 
 	decoder := json.NewDecoder(resp.Body)
 	decoder.DisallowUnknownFields()
@@ -93,7 +100,10 @@ func TestYAML_Success(t *testing.T) {
 	handler.HandlerValidate(w, req)
 
 	resp := w.Result()
-	defer resp.Body.Close()
+	defer func() {
+		err := resp.Body.Close()
+		assert.NoError(t, err)
+	}()
 
 	decoder := json.NewDecoder(resp.Body)
 	decoder.DisallowUnknownFields()
@@ -126,7 +136,10 @@ func TestYAML_FailureWrongType(t *testing.T) {
 	handler.HandlerValidate(w, req)
 
 	resp := w.Result()
-	defer resp.Body.Close()
+	defer func() {
+		err := resp.Body.Close()
+		assert.NoError(t, err)
+	}()
 
 	decoder := json.NewDecoder(resp.Body)
 	decoder.DisallowUnknownFields()
@@ -162,11 +175,43 @@ func TestValidation_Error(t *testing.T) {
 	decoder := json.NewDecoder(resp.Body)
 	decoder.DisallowUnknownFields()
 	err := decoder.Decode(r)
-	defer resp.Body.Close()
+	defer func() {
+		err := resp.Body.Close()
+		assert.NoError(t, err)
+	}()
 
 	assert.Nil(t, err)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	assert.GreaterOrEqual(t, len(r.ValidationErrors), 1)
+}
+
+type errorReadCloser struct {
+	io.Reader
+}
+
+func (e *errorReadCloser) Close() error {
+	return errors.New("simulated close error")
+}
+
+func TestHandlerValidate_BodyCloseError(t *testing.T) {
+	logcfg := logger.DefaultConfig()
+	log, _ := logger.New(logcfg)
+	handler := NewHttpValidateHandler(log, validation.NewContentConfiguration())
+
+	reqBody := OK_VALID_JSON_CONTENT // or any valid JSON
+	req := httptest.NewRequest(http.MethodPost, "/validate", &errorReadCloser{Reader: bytes.NewBufferString(reqBody)})
+	w := httptest.NewRecorder()
+
+	handler.HandlerValidate(w, req)
+
+	resp := w.Result()
+	defer func() {
+		err := resp.Body.Close()
+		assert.NoError(t, err)
+	}()
+
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	// Optionally, check logs or sentry if you have hooks/mocks for them
 }
 
 func TestValidation_ErrorMarshallingValidatedResponse(t *testing.T) {
@@ -193,7 +238,10 @@ func TestValidation_ErrorMarshallingValidatedResponse(t *testing.T) {
 	decoder := json.NewDecoder(resp.Body)
 	decoder.DisallowUnknownFields()
 	err := decoder.Decode(r)
-	defer resp.Body.Close()
+	defer func() {
+		err := resp.Body.Close()
+		assert.NoError(t, err)
+	}()
 
 	assert.Nil(t, err)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
@@ -211,7 +259,10 @@ func TestHandlerHealthz(t *testing.T) {
 	handler.HandlerHealthz(w, req)
 
 	resp := w.Result()
-	defer resp.Body.Close()
+	defer func() {
+		err := resp.Body.Close()
+		assert.NoError(t, err)
+	}()
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
