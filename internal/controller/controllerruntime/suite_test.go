@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controller
+package controllerruntime
 
 import (
 	"context"
@@ -34,11 +34,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
-	openmfpconfig "github.com/openmfp/golang-commons/config"
-	openmfpcontext "github.com/openmfp/golang-commons/context"
-	"github.com/openmfp/golang-commons/logger"
+	openmfpconfig "github.com/platform-mesh/golang-commons/config"
+	openmfpcontext "github.com/platform-mesh/golang-commons/context"
+	"github.com/platform-mesh/golang-commons/logger"
 
-	cachev1alpha1 "github.com/openmfp/extension-manager-operator/api/v1alpha1"
+	"github.com/openmfp/extension-manager-operator/api/v1alpha1"
 	"github.com/openmfp/extension-manager-operator/internal/config"
 )
 
@@ -48,7 +48,7 @@ const (
 	defaultNamespace    = "default"
 )
 
-type ContentConfigurationTestSuite struct {
+type ContentConfigurationControllerTestSuite struct {
 	suite.Suite
 
 	kubernetesClient  client.Client
@@ -59,10 +59,10 @@ type ContentConfigurationTestSuite struct {
 	cancel context.CancelFunc
 }
 
-func (suite *ContentConfigurationTestSuite) SetupSuite() {
+func (suite *ContentConfigurationControllerTestSuite) SetupSuite() {
 	logConfig := logger.DefaultConfig()
 	logConfig.NoJSON = true
-	logConfig.Name = "ContentConfigurationTestSuite"
+	logConfig.Name = "ContentConfigurationControllerTestSuite"
 	log, err := logger.New(logConfig)
 	suite.logger = log
 	suite.Nil(err)
@@ -74,15 +74,15 @@ func (suite *ContentConfigurationTestSuite) SetupSuite() {
 	testContext = logger.SetLoggerInContext(testContext, log.ComponentLogger("TestSuite"))
 
 	suite.testEnv = &envtest.Environment{
-		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "config", "crd", "bases")},
+		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "..", "config", "crd", "bases")},
 		ErrorIfCRDPathMissing: true,
-		BinaryAssetsDirectory: filepath.Join("..", "..", "bin", "k8s", fmt.Sprintf("1.29.0-%s-%s", runtime.GOOS, runtime.GOARCH)),
+		BinaryAssetsDirectory: filepath.Join("..", "..", "..", "bin", "k8s", fmt.Sprintf("1.30.0-%s-%s", runtime.GOOS, runtime.GOARCH)),
 	}
 
 	cfg, err := suite.testEnv.Start()
 	suite.Nil(err)
 
-	utilruntime.Must(cachev1alpha1.AddToScheme(scheme.Scheme))
+	utilruntime.Must(v1alpha1.AddToScheme(scheme.Scheme))
 	utilruntime.Must(v1.AddToScheme(scheme.Scheme))
 
 	// +kubebuilder:scaffold:scheme
@@ -102,21 +102,21 @@ func (suite *ContentConfigurationTestSuite) SetupSuite() {
 	appCfg := config.OperatorConfig{}
 	appCfg.Subroutines.ContentConfiguration.Enabled = true
 
-	contentConfigurationReconciler := NewContentConfigurationReconciler(log, suite.kubernetesManager, appCfg)
+	contentConfigurationReconciler := NewContentConfigurationReconcilerCR(log, suite.kubernetesManager, appCfg)
 	err = contentConfigurationReconciler.SetupWithManager(suite.kubernetesManager, defaultConfig, log)
 	suite.Nil(err)
 
 	go suite.startController()
 }
 
-func (suite *ContentConfigurationTestSuite) startController() {
+func (suite *ContentConfigurationControllerTestSuite) startController() {
 	var controllerContext context.Context
 	controllerContext, suite.cancel = context.WithCancel(context.Background())
 	err := suite.kubernetesManager.Start(controllerContext)
 	suite.Nil(err)
 }
 
-func (suite *ContentConfigurationTestSuite) TearDownSuite() {
+func (suite *ContentConfigurationControllerTestSuite) TearDownSuite() {
 	suite.cancel()
 	err := suite.testEnv.Stop()
 	suite.Nil(err)
