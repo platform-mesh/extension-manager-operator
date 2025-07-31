@@ -1,9 +1,9 @@
-module github.com/openmfp/extension-manager-operator
+module github.com/platform-mesh/extension-manager-operator
 
 go 1.24.4
 
 replace (
-	github.com/openmfp/extension-manager-operator/api => ./api
+	github.com/platform-mesh/extension-manager-operator/api => ./api
 	k8s.io/api => k8s.io/api v0.32.3
 	k8s.io/apimachinery => k8s.io/apimachinery v0.32.3
 	k8s.io/client-go => k8s.io/client-go v0.32.3
@@ -20,8 +20,8 @@ require (
 	github.com/kcp-dev/kcp/sdk v0.27.1
 	github.com/kcp-dev/logicalcluster/v3 v3.0.5
 	github.com/kcp-dev/multicluster-provider v0.1.0
-	github.com/openmfp/extension-manager-operator/api v0.142.2
 	github.com/pkg/errors v0.9.1
+	github.com/platform-mesh/extension-manager-operator/api v0.0.0-00010101000000-000000000000
 	github.com/platform-mesh/golang-commons v0.1.9
 	github.com/prometheus/client_golang v1.22.0
 	github.com/rs/cors v1.11.1
