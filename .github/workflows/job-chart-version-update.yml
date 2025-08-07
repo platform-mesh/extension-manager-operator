@@ -1,0 +1,26 @@
+name: job-chart-version-update
+on:
+  workflow_call:
+    inputs:
+      appVersion:
+        required: true
+        type: string
+      chart:
+        required: true
+        type: string
+      targetRepository:
+        required: false
+        type: string
+        default: 'platform-mesh/helm-charts'
+    secrets:
+      TECH_PLATFORM_TOKEN:
+        required: true
+
+jobs:
+  updateVersion:
+    uses: platform-mesh/.github/.github/workflows/job-chart-version-update.yml@main
+    secrets: inherit
+    with:
+      appVersion: ${{ inputs.appVersion }}
+      chart: ${{ inputs.chart }}
+      targetRepository: ${{ inputs.targetRepository }}

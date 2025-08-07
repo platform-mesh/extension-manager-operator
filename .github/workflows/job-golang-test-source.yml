@@ -1,0 +1,38 @@
+name: job-golang-test-source
+on:
+  workflow_call:
+    inputs:
+      useTask:
+        required: false
+        type: boolean
+        default: false
+      useLocalCoverageConfig:
+        required: false
+        type: boolean
+        default: false
+      coverageThresholdFile:
+        required: false
+        type: number
+        default: 80
+      coverageThresholdPackage:
+        required: false
+        type: number
+        default: 80
+      coverageThresholdTotal:
+        required: false
+        type: number
+        default: 95
+    secrets:
+      TECH_PLATFORM_TOKEN:
+        required: true
+
+jobs:
+  testSource:
+    uses: platform-mesh/.github/.github/workflows/job-golang-test-source.yml@main
+    with:
+      useTask: ${{ inputs.useTask }}
+      useLocalCoverageConfig: ${{ inputs.useLocalCoverageConfig }}
+      coverageThresholdFile: ${{ inputs.coverageThresholdFile }}
+      coverageThresholdPackage: ${{ inputs.coverageThresholdPackage }}
+      coverageThresholdTotal: ${{ inputs.coverageThresholdTotal }}
+    secrets: inherit
