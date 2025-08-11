@@ -21,7 +21,7 @@ require (
 	github.com/kcp-dev/logicalcluster/v3 v3.0.5
 	github.com/kcp-dev/multicluster-provider v0.2.0
 	github.com/pkg/errors v0.9.1
-	github.com/platform-mesh/extension-manager-operator/api v0.0.0-20250811142912-8bc8823d46b4
+	github.com/platform-mesh/extension-manager-operator/api v0.0.0-20250811221007-eab2a7f2cd9a
 	github.com/platform-mesh/golang-commons v0.1.13
 	github.com/prometheus/client_golang v1.23.0
 	github.com/rs/cors v1.11.1
