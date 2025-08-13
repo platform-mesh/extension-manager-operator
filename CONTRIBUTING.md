@@ -18,7 +18,6 @@ You are welcome to contribute with your pull requests. These steps explain the c
 ## Testing
 
 > **NOTE:** You should always add tests if you are adding code to our repository.
-
 To let tests run locally, you can use the Taskfile:
 ```sh
 task test
