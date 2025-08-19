@@ -22,7 +22,7 @@ require (
 	github.com/kcp-dev/multicluster-provider v0.2.0
 	github.com/pkg/errors v0.9.1
 	github.com/platform-mesh/extension-manager-operator/api v0.0.0-20250811221007-eab2a7f2cd9a
-	github.com/platform-mesh/golang-commons v0.1.14
+	github.com/platform-mesh/golang-commons v0.1.19
 	github.com/prometheus/client_golang v1.23.0
 	github.com/rs/cors v1.11.1
 	github.com/rs/zerolog v1.34.0
@@ -54,7 +54,7 @@ require (
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fsnotify/fsnotify v1.8.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.7.0 // indirect
-	github.com/getsentry/sentry-go v0.35.0 // indirect
+	github.com/getsentry/sentry-go v0.35.1 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.1 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
