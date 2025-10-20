@@ -395,6 +395,9 @@
         },
         "id": {
           "type": "string"
+        },
+        "hideGlobalSearch": {
+          "type": "boolean"
         }
       },
       "additionalProperties": false,

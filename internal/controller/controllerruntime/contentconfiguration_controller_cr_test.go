@@ -285,6 +285,12 @@ func (suite *ContentConfigurationControllerTestSuite) TestContentConfigurationCr
 	)
 
 	// When
+	time.Sleep(2 * time.Second)
+	err = suite.kubernetesClient.Get(testContext, types.NamespacedName{
+		Name:      contentConfiguration.Name,
+		Namespace: contentConfiguration.Namespace,
+	}, &createdInstance)
+	suite.Nil(err)
 	err = suite.kubernetesClient.Update(testContext, &createdInstance)
 	suite.Nil(err)
 
