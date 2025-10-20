@@ -124,6 +124,7 @@ type Node struct {
 	ConfigurationHint         string                   `json:"configurationHint,omitempty" yaml:"configurationHint,omitempty"`
 	ConfigurationLink         string                   `json:"configurationLink,omitempty" yaml:"configurationLink,omitempty"`
 	Id                        string                   `json:"id,omitempty" yaml:"id,omitempty"`
+	HideGlobalSearch          bool                     `json:"hideGlobalSearch,omitempty" yaml:"hideGlobalSearch,omitempty"`
 }
 
 type ExternalLink struct {
