@@ -19,7 +19,7 @@ require (
 	github.com/jarcoal/httpmock v1.4.1
 	github.com/kcp-dev/kcp/sdk v0.28.3
 	github.com/kcp-dev/logicalcluster/v3 v3.0.5
-	github.com/kcp-dev/multicluster-provider v0.2.0
+	github.com/kcp-dev/multicluster-provider v0.2.1
 	github.com/pkg/errors v0.9.1
 	github.com/platform-mesh/extension-manager-operator/api v0.1.24
 	github.com/platform-mesh/golang-commons v0.1.19
@@ -37,7 +37,7 @@ require (
 	k8s.io/apimachinery v0.33.3
 	k8s.io/client-go v0.33.3
 	sigs.k8s.io/controller-runtime v0.21.0
-	sigs.k8s.io/multicluster-runtime v0.20.4-alpha.7
+	sigs.k8s.io/multicluster-runtime v0.21.0-alpha.8
 	sigs.k8s.io/yaml v1.6.0
 )
 
@@ -75,7 +75,7 @@ require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/kcp-dev/apimachinery/v2 v2.0.1-0.20250512171935-ebb573a40077 // indirect
+	github.com/kcp-dev/apimachinery/v2 v2.0.1-0.20250728122101-adbf20db3e51 // indirect
 	github.com/mailru/easyjson v0.9.0 // indirect
 	github.com/martinlindhe/base36 v1.1.1 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
