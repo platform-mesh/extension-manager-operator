@@ -398,6 +398,9 @@
         },
         "hideGlobalSearch": {
           "type": "boolean"
+        },
+        "hideFromBreadcrumb": {
+          "type": "boolean"
         }
       },
       "additionalProperties": false,
