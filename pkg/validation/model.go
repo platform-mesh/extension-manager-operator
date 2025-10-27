@@ -125,6 +125,7 @@ type Node struct {
 	ConfigurationLink         string                   `json:"configurationLink,omitempty" yaml:"configurationLink,omitempty"`
 	Id                        string                   `json:"id,omitempty" yaml:"id,omitempty"`
 	HideGlobalSearch          *bool                    `json:"hideGlobalSearch,omitempty" yaml:"hideGlobalSearch,omitempty"`
+	HideFromBreadcrumb        *bool                    `json:"hideFromBreadcrumb,omitempty" yaml:"hideFromBreadcrumb,omitempty"`
 }
 
 type ExternalLink struct {
