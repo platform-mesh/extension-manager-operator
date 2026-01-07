@@ -204,6 +204,7 @@ type GraphqlEntity struct {
 	Group string `json:"group,omitempty" yaml:"group,omitempty"`
 	Kind  string `json:"kind,omitempty" yaml:"kind,omitempty"`
 	Query string `json:"query,omitempty" yaml:"query,omitempty"`
+	Version string `json:"version,omitempty" yaml:"version,omitempty"`
 }
 
 type NotFoundConfig struct {
