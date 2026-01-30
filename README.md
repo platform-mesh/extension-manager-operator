@@ -19,6 +19,20 @@ For reference, see the [RFC for Platform Mesh Extension Management - CDM Process
 - Services to allow validation of content configuration at runtime while developing a micro frontend on the developers system.
 - Ability to provide validation feedback while keeping the last validated content configuration.
 
+## Architecture (KCP mode)
+
+When running with **KCP** (Kubernetes Control Plane) for multi-cluster, the operator uses two separate Kubernetes API configs:
+
+| Config | Source | Used for |
+|--------|--------|----------|
+| **KCP config** | `KUBECONFIG` env (e.g. mounted from a secret) | Discovery and multicluster provider: watching `APIExportEndpointSlice`, talking to the Root KCP API Server. |
+| **In-cluster config** | `rest.InClusterConfig()` | Leader election only: the Lease lives in the cluster where the pod runs. |
+
+So discovery and APIExportEndpointSlice always use **KUBECONFIG**; leader election uses **in-cluster config** when running inside a cluster (same pattern as other platform-mesh operators).
+
+The name of the `APIExportEndpointSlice` to watch is configurable (flag `--kcp-api-export-endpoint-slice-name`; default is omitted so the provider auto-discovers). When set (e.g. to `core.platform-mesh.io`), only that slice is watched.
+
+
 ## Getting Started
 For running Platform Mesh locally checkout our [getting started guide](https://platform-mesh.github.io/platform-mesh.org/docs/getting-started). The extension-manager-operator can be deployed on a kubernetes cluster using the helm-chart [here](https://github.com/platform-mesh/helm-charts/tree/main/charts/extension-manager-operator) and for CRDs [here](https://github.com/platform-mesh/helm-charts/tree/main/charts/extension-manager-operator-crds).
 
