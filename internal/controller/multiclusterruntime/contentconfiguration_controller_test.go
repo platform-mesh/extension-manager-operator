@@ -133,15 +133,16 @@ func (suite *ContentConfigurationTestSuite) SetupSuite() {
 
 	// lookup api export
 	err = suite.cli.Cluster(suite.provider).Get(suite.ctx, types.NamespacedName{Name: "ui.platform-mesh.io"}, aes)
-	suite.Require().NoError(err, "failed to get APIExport for ui.platform-mesh.io in consumer workspace")
+	suite.Require().NoError(err, "failed to get APIExport for ui.platform-mesh.io in provider workspace")
 
-	cfg := rest.CopyConfig(kcpConfig)
-	cfg.Host = aes.Status.APIExportEndpoints[0].URL
-	provider, err := apiexport.New(cfg, "", apiexport.Options{Scheme: scheme.Scheme})
-	suite.Require().NoError(err, "failed to create APIExport client for ui.platform-mesh.io in consumer workspace")
+	// Provider and manager must use root KCP config so discovery (e.g. APIExportEndpointSlice) works.
+	// Using the virtual workspace URL for apiexport.New causes "failed to get server groups" because
+	// the virtual workspace does not serve root KCP types like APIExportEndpointSlice.
+	provider, err := apiexport.New(kcpConfig, "ui.platform-mesh.io", apiexport.Options{Scheme: scheme.Scheme})
+	suite.Require().NoError(err, "failed to create APIExport provider for ui.platform-mesh.io")
 
-	mgr, err := mcmanager.New(cfg, provider, mcmanager.Options{Logger: log.Logr()})
-	suite.Require().NoError(err, "failed to create APIExport client for ui.platform-mesh.io in consumer workspace")
+	mgr, err := mcmanager.New(kcpConfig, provider, mcmanager.Options{Logger: log.Logr()})
+	suite.Require().NoError(err, "failed to create multicluster manager")
 
 	operatorCfg := config.OperatorConfig{}
 	operatorCfg.Subroutines.ContentConfiguration.Enabled = true
