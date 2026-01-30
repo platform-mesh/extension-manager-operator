@@ -40,8 +40,7 @@ func Test_loadSchemaJSONFromFile_InvalidFile(t *testing.T) {
 	_, err := loadSchemaJSONFromFile("invalid_file_path")
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "no such file or directory")
-	assert.True(t, os.IsNotExist(err))
+	assert.True(t, os.IsNotExist(err), "expected path error for missing file")
 }
 
 func Test_loadSchemaJSONFromFile_EmptyFile(t *testing.T) {

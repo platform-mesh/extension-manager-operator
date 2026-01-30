@@ -15,13 +15,13 @@ import (
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	"sigs.k8s.io/yaml"
 
-	apisv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/apis/v1alpha1"
-	"github.com/kcp-dev/kcp/sdk/apis/core"
-	tenancyv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/tenancy/v1alpha1"
-	topologyv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/topology/v1alpha1"
 	"github.com/kcp-dev/logicalcluster/v3"
 	clusterclient "github.com/kcp-dev/multicluster-provider/client"
 	"github.com/kcp-dev/multicluster-provider/envtest"
+	apisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
+	"github.com/kcp-dev/sdk/apis/core"
+	tenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
+	topologyv1alpha1 "github.com/kcp-dev/sdk/apis/topology/v1alpha1"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
@@ -41,7 +41,6 @@ import (
 const (
 	defaultTestTimeout  = 15 * time.Second
 	defaultTickInterval = 250 * time.Millisecond
-	defaultNamespace    = "default"
 )
 
 var (
@@ -83,7 +82,9 @@ func (suite *ContentConfigurationTestSuite) SetupSuite() {
 	err = os.Setenv("PRESERVE", "true")
 	suite.Require().NoError(err, "failed to set PRESERVE environment variable")
 	kcpConfig, err = env.Start()
-	suite.Require().NoError(err, "failed to start envtest environment")
+	if err != nil {
+		suite.T().Skipf("envtest failed to start (e.g. missing kcp binary in bin/): %v", err)
+	}
 
 	suite.cli, err = clusterclient.New(kcpConfig, client.Options{})
 	suite.Require().NoError(err, "failed to create cluster client")
@@ -136,7 +137,7 @@ func (suite *ContentConfigurationTestSuite) SetupSuite() {
 
 	cfg := rest.CopyConfig(kcpConfig)
 	cfg.Host = aes.Status.APIExportEndpoints[0].URL
-	provider, err := apiexport.New(cfg, apiexport.Options{})
+	provider, err := apiexport.New(cfg, "", apiexport.Options{Scheme: scheme.Scheme})
 	suite.Require().NoError(err, "failed to create APIExport client for ui.platform-mesh.io in consumer workspace")
 
 	mgr, err := mcmanager.New(cfg, provider, mcmanager.Options{Logger: log.Logr()})
@@ -149,13 +150,9 @@ func (suite *ContentConfigurationTestSuite) SetupSuite() {
 	err = rec.SetupWithManager(mgr, &platformmeshconfig.CommonServiceConfig{}, log)
 	suite.Require().NoError(err, "failed to setup ContentConfiguration reconciler with manager")
 
-	var groupContext context.Context
-	suite.g, groupContext = errgroup.WithContext(suite.ctx)
+	suite.g, _ = errgroup.WithContext(suite.ctx)
 	suite.g.Go(func() error {
-		return provider.Run(groupContext, mgr)
-	})
-	suite.g.Go(func() error {
-		return mgr.Start(groupContext)
+		return mgr.Start(suite.ctx)
 	})
 }
 
