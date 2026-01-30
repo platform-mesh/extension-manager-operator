@@ -20,6 +20,10 @@ import (
 	"context"
 	"crypto/tls"
 	"net/http"
+	"os"
+
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/kcp-dev/multicluster-provider/apiexport"
 	platformmeshcontext "github.com/platform-mesh/golang-commons/context"
@@ -29,7 +33,6 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -45,6 +48,10 @@ var operatorCmd = &cobra.Command{
 	Use:   "operator",
 	Short: "operator to reconcile ContentConfiguration",
 	Run:   RunController,
+}
+
+func getScheme() *runtime.Scheme {
+	return scheme
 }
 
 func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
@@ -74,45 +81,59 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 		}
 	}()
 
-	restCfg := ctrl.GetConfigOrDie()
+	kubeconfigPath := os.Getenv("KUBECONFIG")
+	var restCfg *rest.Config
+	if kubeconfigPath != "" {
+		var err error
+		restCfg, err = clientcmd.BuildConfigFromFlags("", kubeconfigPath)
+		if err != nil {
+			log.Fatal().Err(err).Msg("unable to load kubeconfig from KUBECONFIG env var")
+		}
+	} else {
+		log.Info().Msg("KUBECONFIG not set, using GetConfigOrDie()")
+		restCfg = ctrl.GetConfigOrDie()
+	}
 	restCfg.Wrap(func(rt http.RoundTripper) http.RoundTripper {
 		return otelhttp.NewTransport(rt)
 	})
 
 	if operatorCfg.KCP.Enabled {
-		initializeMultiClusterManager(ctx, restCfg, log, operatorCfg)
+		log.Info().Msg("KCP mode enabled, initializing multicluster manager")
+		leaderElectionCfg, err := rest.InClusterConfig()
+		if err != nil {
+			log.Warn().Err(err).Msg("not running in cluster, using KCP config for leader election (e.g. local dev)")
+			leaderElectionCfg = restCfg
+		} else {
+			log.Info().Msg("leader election configured (in-cluster); KCP discovery uses KUBECONFIG")
+		}
+		initializeMultiClusterManager(ctx, leaderElectionCfg, restCfg, log, operatorCfg)
+	} else {
+		log.Info().Msg("KCP mode disabled, using standard controller-runtime manager")
+		initializeControllerRuntimeManager(ctx, restCfg)
 	}
-
-	initializeControllerRuntimeManager(ctx, restCfg)
 }
 
-func initializeMultiClusterManager(ctx context.Context, cfg *rest.Config, log *logger.Logger, operatorCfg config.OperatorConfig) {
+func initializeMultiClusterManager(ctx context.Context, cfg *rest.Config, kcpCfg *rest.Config, log *logger.Logger, operatorCfg config.OperatorConfig) {
 	log.Info().Msg("Initializing multicluster manager")
-	kubeconfigPath := operatorCfg.KCP.Kubeconfig
-	kcpCfg, err := clientcmd.BuildConfigFromFlags("", kubeconfigPath)
-	if err != nil {
-		log.Fatal().Err(err).Str("controller", "ContentConfiguration").Msg("unable to construct cluster provider")
-	}
 	kcpCfg.Wrap(func(rt http.RoundTripper) http.RoundTripper {
 		return otelhttp.NewTransport(rt)
 	})
 
-	provider, err := apiexport.New(kcpCfg, apiexport.Options{
-		Scheme: scheme,
+	endpointSliceName := operatorCfg.KCP.APIExportEndpointSliceName
+	provider, err := apiexport.New(kcpCfg, endpointSliceName, apiexport.Options{
+		Scheme: getScheme(),
 	})
 	if err != nil {
 		log.Fatal().Err(err).Msg("unable to construct cluster provider")
 	}
+	log.Info().Str("endpointSliceName", endpointSliceName).Msg("KCP cluster provider created")
 
 	mgr, err := mcmanager.New(kcpCfg, provider, manager.Options{
-		Scheme: scheme,
+		Scheme: getScheme(),
 		Metrics: metricsserver.Options{
 			BindAddress: defaultCfg.Metrics.BindAddress,
 			TLSOpts: []func(*tls.Config){
-				func(c *tls.Config) {
-					log.Info().Msg("disabling http/2")
-					c.NextProtos = []string{"http/1.1"}
-				},
+				func(c *tls.Config) { c.NextProtos = []string{"http/1.1"} },
 			},
 		},
 		BaseContext:                   func() context.Context { return ctx },
@@ -130,6 +151,7 @@ func initializeMultiClusterManager(ctx context.Context, cfg *rest.Config, log *l
 	if err := contentConfigurationReconciler.SetupWithManager(mgr, defaultCfg, log); err != nil {
 		log.Fatal().Err(err).Str("controller", "ContentConfiguration").Msg("unable to create controller")
 	}
+	log.Info().Str("controller", "ContentConfiguration").Msg("ContentConfiguration controller registered with multicluster manager")
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		log.Fatal().Err(err).Msg("unable to set up health check")
@@ -138,21 +160,16 @@ func initializeMultiClusterManager(ctx context.Context, cfg *rest.Config, log *l
 		log.Fatal().Err(err).Msg("unable to set up ready check")
 	}
 
-	log.Info().Msg("Starting provider")
-	go func() {
-		if err := provider.Run(ctx, mgr); err != nil {
-			log.Fatal().Err(err).Msg("unable to run provider")
-		}
-	}()
-	log.Info().Msg("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	log.Info().Msg("starting multicluster manager")
+	startCtx := ctrl.SetupSignalHandler()
+	if err := mgr.Start(startCtx); err != nil {
 		log.Fatal().Err(err).Msg("problem running manager")
 	}
 }
 
 func initializeControllerRuntimeManager(ctx context.Context, restCfg *rest.Config) {
 	mgr, err := ctrl.NewManager(restCfg, ctrl.Options{
-		Scheme: scheme,
+		Scheme: getScheme(),
 		Metrics: metricsserver.Options{
 			BindAddress: defaultCfg.Metrics.BindAddress,
 			TLSOpts: []func(*tls.Config){
