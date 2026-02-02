@@ -2,7 +2,10 @@ package multiclusterruntime
 
 import (
 	"context"
+	"crypto/tls"
+	"net/http"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -135,13 +138,29 @@ func (suite *ContentConfigurationTestSuite) SetupSuite() {
 	err = suite.cli.Cluster(suite.provider).Get(suite.ctx, types.NamespacedName{Name: "ui.platform-mesh.io"}, aes)
 	suite.Require().NoError(err, "failed to get APIExport for ui.platform-mesh.io in provider workspace")
 
-	// Provider and manager must use root KCP config so discovery (e.g. APIExportEndpointSlice) works.
-	// Using the virtual workspace URL for apiexport.New causes "failed to get server groups" because
-	// the virtual workspace does not serve root KCP types like APIExportEndpointSlice.
-	provider, err := apiexport.New(kcpConfig, "ui.platform-mesh.io", apiexport.Options{Scheme: scheme.Scheme})
+	// Config must point at the provider workspace so discovery can find APIExportEndpointSlice there
+	// (same as multicluster-provider e2e: providerConfig.Host += provider.RequestPath()).
+	providerConfig := rest.CopyConfig(kcpConfig)
+	providerConfig.Host = strings.TrimSuffix(providerConfig.Host, "/") + suite.provider.RequestPath()
+	// KCP envtest often fails discovery with "failed to get server groups: unknown" when the client
+	// uses HTTP/2 (default). Force HTTP/1.1 so the cache's discovery client uses it (same as operator).
+	providerConfig.Wrap(func(rt http.RoundTripper) http.RoundTripper {
+		if tr, ok := rt.(*http.Transport); ok {
+			tr = tr.Clone()
+			if tr.TLSClientConfig == nil {
+				tr.TLSClientConfig = &tls.Config{}
+			} else {
+				tr.TLSClientConfig = tr.TLSClientConfig.Clone()
+			}
+			tr.TLSClientConfig.NextProtos = []string{"http/1.1"}
+			return tr
+		}
+		return rt
+	})
+	provider, err := apiexport.New(providerConfig, "ui.platform-mesh.io", apiexport.Options{Scheme: scheme.Scheme})
 	suite.Require().NoError(err, "failed to create APIExport provider for ui.platform-mesh.io")
 
-	mgr, err := mcmanager.New(kcpConfig, provider, mcmanager.Options{Logger: log.Logr()})
+	mgr, err := mcmanager.New(providerConfig, provider, mcmanager.Options{Logger: log.Logr()})
 	suite.Require().NoError(err, "failed to create multicluster manager")
 
 	operatorCfg := config.OperatorConfig{}
