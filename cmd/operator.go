@@ -22,7 +22,6 @@ import (
 	"net/http"
 	"os"
 
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/kcp-dev/multicluster-provider/apiexport"
@@ -48,10 +47,6 @@ var operatorCmd = &cobra.Command{
 	Use:   "operator",
 	Short: "operator to reconcile ContentConfiguration",
 	Run:   RunController,
-}
-
-func getScheme() *runtime.Scheme {
-	return scheme
 }
 
 func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
@@ -121,7 +116,7 @@ func initializeMultiClusterManager(ctx context.Context, cfg *rest.Config, kcpCfg
 
 	endpointSliceName := operatorCfg.KCP.APIExportEndpointSliceName
 	provider, err := apiexport.New(kcpCfg, endpointSliceName, apiexport.Options{
-		Scheme: getScheme(),
+		Scheme: scheme,
 	})
 	if err != nil {
 		log.Fatal().Err(err).Msg("unable to construct cluster provider")
@@ -129,7 +124,7 @@ func initializeMultiClusterManager(ctx context.Context, cfg *rest.Config, kcpCfg
 	log.Info().Str("endpointSliceName", endpointSliceName).Msg("KCP cluster provider created")
 
 	mgr, err := mcmanager.New(kcpCfg, provider, manager.Options{
-		Scheme: getScheme(),
+		Scheme: scheme,
 		Metrics: metricsserver.Options{
 			BindAddress: defaultCfg.Metrics.BindAddress,
 			TLSOpts: []func(*tls.Config){
@@ -169,7 +164,7 @@ func initializeMultiClusterManager(ctx context.Context, cfg *rest.Config, kcpCfg
 
 func initializeControllerRuntimeManager(ctx context.Context, restCfg *rest.Config) {
 	mgr, err := ctrl.NewManager(restCfg, ctrl.Options{
-		Scheme: getScheme(),
+		Scheme: scheme,
 		Metrics: metricsserver.Options{
 			BindAddress: defaultCfg.Metrics.BindAddress,
 			TLSOpts: []func(*tls.Config){
