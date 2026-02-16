@@ -94,12 +94,13 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 
 	if operatorCfg.KCP.Enabled {
 		log.Info().Msg("KCP mode enabled, initializing multicluster manager")
-		leaderElectionCfg, err := rest.InClusterConfig()
-		if err != nil {
-			log.Warn().Err(err).Msg("not running in cluster, using KCP config for leader election (e.g. local dev)")
-			leaderElectionCfg = restCfg
-		} else {
-			log.Info().Msg("leader election configured (in-cluster); KCP discovery uses KUBECONFIG")
+		// Leader election: same as account-operator and security-operator — use in-cluster config for the lease; Fatal if not in cluster.
+		var leaderElectionCfg *rest.Config
+		if defaultCfg.LeaderElection.Enabled {
+			leaderElectionCfg, err = rest.InClusterConfig()
+			if err != nil {
+				log.Fatal().Err(err).Msg("unable to get in-cluster config for leader election")
+			}
 		}
 		initializeMultiClusterManager(ctx, leaderElectionCfg, restCfg, log, operatorCfg)
 	} else {
@@ -108,7 +109,7 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 	}
 }
 
-func initializeMultiClusterManager(ctx context.Context, cfg *rest.Config, kcpCfg *rest.Config, log *logger.Logger, operatorCfg config.OperatorConfig) {
+func initializeMultiClusterManager(ctx context.Context, leaderElectionCfg *rest.Config, kcpCfg *rest.Config, log *logger.Logger, operatorCfg config.OperatorConfig) {
 	log.Info().Msg("Initializing multicluster manager")
 	kcpCfg.Wrap(func(rt http.RoundTripper) http.RoundTripper {
 		return otelhttp.NewTransport(rt)
@@ -136,7 +137,7 @@ func initializeMultiClusterManager(ctx context.Context, cfg *rest.Config, kcpCfg
 		LeaderElection:                defaultCfg.LeaderElection.Enabled,
 		LeaderElectionID:              "eengiex3.platform-mesh.io",
 		LeaderElectionReleaseOnCancel: true,
-		LeaderElectionConfig:          cfg,
+		LeaderElectionConfig:          leaderElectionCfg,
 	})
 	if err != nil {
 		log.Fatal().Err(err).Msg("unable to set up overall controller manager")
