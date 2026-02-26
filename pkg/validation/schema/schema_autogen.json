@@ -226,6 +226,9 @@
         },
         "icon": {
           "type": "string"
+        },
+        "type": {
+          "type": "string"
         }
       },
       "additionalProperties": false,

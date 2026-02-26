@@ -152,6 +152,7 @@ type NavHeader struct {
 	Label            string `json:"label,omitempty" yaml:"label,omitempty"`
 	ShowUpLink       bool   `json:"showUpLink,omitempty" yaml:"showUpLink,omitempty"`
 	Icon             string `json:"icon,omitempty" yaml:"icon,omitempty"`
+	Type             string `json:"type,omitempty" yaml:"type,omitempty"`
 }
 
 type ClientPermissions struct {
