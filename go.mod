@@ -4,7 +4,7 @@ go 1.25.0
 
 replace (
 	github.com/platform-mesh/extension-manager-operator/api => ./api
-	k8s.io/api => k8s.io/api v0.35.1
+	k8s.io/api => k8s.io/api v0.35.2
 	k8s.io/apimachinery => k8s.io/apimachinery v0.35.1
 	k8s.io/client-go => k8s.io/client-go v0.35.1
 	sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.22.4
@@ -33,8 +33,8 @@ require (
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.65.0
 	golang.org/x/sync v0.19.0
 	gopkg.in/yaml.v3 v3.0.1
-	k8s.io/api v0.35.1
-	k8s.io/apimachinery v0.35.1
+	k8s.io/api v0.35.2
+	k8s.io/apimachinery v0.35.2
 	k8s.io/client-go v0.35.1
 	sigs.k8s.io/controller-runtime v0.22.4
 	sigs.k8s.io/multicluster-runtime v0.22.4-beta.1
