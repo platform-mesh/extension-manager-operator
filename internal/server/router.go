@@ -19,11 +19,14 @@ func CreateRouter(
 ) *chi.Mux {
 	router := chi.NewRouter()
 
-	if appConfig.IsLocal {
-		rl := requestLogger{
-			log: log,
-		}
+	// Always enable request logging - log level controls output
+	rl := requestLogger{
+		log: log,
+	}
+	router.Use(rl.Handler)
 
+	// CORS only needed for local development
+	if appConfig.IsLocal {
 		router.Use(cors.New(cors.Options{
 			AllowedOrigins:   []string{"*"},
 			AllowCredentials: true,
@@ -31,7 +34,6 @@ func CreateRouter(
 			Debug:            false,
 			AllowedMethods:   []string{http.MethodPost, http.MethodGet},
 		}).Handler)
-		router.Use(rl.Handler)
 	}
 
 	vh := NewHttpValidateHandler(log, validator)
