@@ -14,6 +14,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	apimachinery "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	cachev1alpha1 "github.com/platform-mesh/extension-manager-operator/api/v1alpha1"
 	"github.com/platform-mesh/extension-manager-operator/pkg/subroutines/mocks"
@@ -417,4 +420,389 @@ func getCondition(conditions []apimachinery.Condition, conditionType string) api
 		}
 	}
 	return apimachinery.Condition{}
+}
+
+// validJSONWithEntityType returns a valid CC JSON that references the given entityType
+// in both nodeDefaults and a single node.
+func validJSONWithEntityType(entityType string) string {
+	return `{
+		"name": "test-cc",
+		"luigiConfigFragment": {
+			"data": {
+				"nodeDefaults": {
+					"entityType": "` + entityType + `"
+				},
+				"nodes": [
+					{
+						"entityType": "` + entityType + `",
+						"pathSegment": "home",
+						"label": "Home"
+					}
+				]
+			}
+		}
+	}`
+}
+
+// validJSONDefiningEntityType returns a valid CC JSON that defines a new entity type
+// via defineEntity under a "global" parent.
+func validJSONDefiningEntityType(defineEntityId string) string {
+	return `{
+		"name": "definer-cc",
+		"luigiConfigFragment": {
+			"data": {
+				"nodes": [
+					{
+						"entityType": "global",
+						"pathSegment": "root",
+						"label": "Root",
+						"defineEntity": {
+							"id": "` + defineEntityId + `",
+							"contextKey": "` + defineEntityId + `Id"
+						},
+						"children": []
+					}
+				]
+			}
+		}
+	}`
+}
+
+func newFakeReader(objects ...client.Object) client.Reader {
+	scheme := runtime.NewScheme()
+	err := cachev1alpha1.AddToScheme(scheme)
+	if err != nil {
+		panic(err)
+	}
+	return fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build()
+}
+
+func TestProcess_EntityTypeValidation(t *testing.T) {
+	tests := []struct {
+		name                    string
+		existingCCs             []client.Object
+		inlineContent           string
+		registry                *validation.EntityTypeRegistry
+		k8sReader               client.Reader
+		expectOperatorError     bool
+		expectValidCondition    string
+		expectValidReason       string
+		expectConfigResult      bool
+		expectRegistryContains  []string
+	}{
+		{
+			name: "registry init succeeds and populates from existing CCs",
+			existingCCs: []client.Object{
+				&cachev1alpha1.ContentConfiguration{
+					ObjectMeta: apimachinery.ObjectMeta{Name: "existing-cc"},
+					Status: cachev1alpha1.ContentConfigurationStatus{
+						ConfigurationResult: validJSONDefiningEntityType("project"),
+					},
+				},
+			},
+			inlineContent:          validJSONWithEntityType("project"),
+			registry:               validation.NewEntityTypeRegistry(),
+			expectValidCondition:   ConditionStatusTrue,
+			expectValidReason:      ValidationConditionReasonSuccess,
+			expectConfigResult:     true,
+			expectRegistryContains: []string{"global", "project"},
+		},
+		{
+			name:                   "registry init with empty CC list succeeds",
+			existingCCs:            []client.Object{},
+			inlineContent:          validJSONWithEntityType("global"),
+			registry:               validation.NewEntityTypeRegistry(),
+			expectValidCondition:   ConditionStatusTrue,
+			expectValidReason:      ValidationConditionReasonSuccess,
+			expectConfigResult:     true,
+			expectRegistryContains: []string{"global"},
+		},
+		{
+			name:                "registry init with nil reader returns error",
+			inlineContent:       validJSONWithEntityType("global"),
+			registry:            validation.NewEntityTypeRegistry(),
+			k8sReader:           nil,
+			expectOperatorError: true,
+		},
+		{
+			name: "entity type validation failure sets Valid=False condition",
+			existingCCs: []client.Object{},
+			inlineContent:        validJSONWithEntityType("nonexistent-type"),
+			registry:             validation.NewEntityTypeRegistry(),
+			expectValidCondition: ConditionStatusFalse,
+			expectValidReason:    ValidationConditionReasonFailed,
+			expectConfigResult:   false,
+		},
+		{
+			name: "entity type validation success updates registry",
+			existingCCs: []client.Object{
+				&cachev1alpha1.ContentConfiguration{
+					ObjectMeta: apimachinery.ObjectMeta{Name: "definer"},
+					Status: cachev1alpha1.ContentConfigurationStatus{
+						ConfigurationResult: validJSONDefiningEntityType("mytype"),
+					},
+				},
+			},
+			inlineContent:          validJSONWithEntityType("mytype"),
+			registry:               validation.NewEntityTypeRegistry(),
+			expectValidCondition:   ConditionStatusTrue,
+			expectValidReason:      ValidationConditionReasonSuccess,
+			expectConfigResult:     true,
+			expectRegistryContains: []string{"global", "mytype"},
+		},
+		{
+			name: "initEntityTypeRegistry skips CC with empty ConfigurationResult",
+			existingCCs: []client.Object{
+				&cachev1alpha1.ContentConfiguration{
+					ObjectMeta: apimachinery.ObjectMeta{Name: "empty-result"},
+					Status:     cachev1alpha1.ContentConfigurationStatus{ConfigurationResult: ""},
+				},
+			},
+			inlineContent:          validJSONWithEntityType("global"),
+			registry:               validation.NewEntityTypeRegistry(),
+			expectValidCondition:   ConditionStatusTrue,
+			expectValidReason:      ValidationConditionReasonSuccess,
+			expectConfigResult:     true,
+			expectRegistryContains: []string{"global"},
+		},
+		{
+			name: "initEntityTypeRegistry skips CC with unparseable ConfigurationResult",
+			existingCCs: []client.Object{
+				&cachev1alpha1.ContentConfiguration{
+					ObjectMeta: apimachinery.ObjectMeta{Name: "bad-json"},
+					Status: cachev1alpha1.ContentConfigurationStatus{
+						ConfigurationResult: "{{not valid json at all",
+					},
+				},
+			},
+			inlineContent:          validJSONWithEntityType("global"),
+			registry:               validation.NewEntityTypeRegistry(),
+			expectValidCondition:   ConditionStatusTrue,
+			expectValidReason:      ValidationConditionReasonSuccess,
+			expectConfigResult:     true,
+			expectRegistryContains: []string{"global"},
+		},
+		{
+			name: "initEntityTypeRegistry skips unparseable but loads valid CCs",
+			existingCCs: []client.Object{
+				&cachev1alpha1.ContentConfiguration{
+					ObjectMeta: apimachinery.ObjectMeta{Name: "bad"},
+					Status: cachev1alpha1.ContentConfigurationStatus{
+						ConfigurationResult: "not json",
+					},
+				},
+				&cachev1alpha1.ContentConfiguration{
+					ObjectMeta: apimachinery.ObjectMeta{Name: "good"},
+					Status: cachev1alpha1.ContentConfigurationStatus{
+						ConfigurationResult: validJSONDefiningEntityType("team"),
+					},
+				},
+			},
+			inlineContent:          validJSONWithEntityType("team"),
+			registry:               validation.NewEntityTypeRegistry(),
+			expectValidCondition:   ConditionStatusTrue,
+			expectValidReason:      ValidationConditionReasonSuccess,
+			expectConfigResult:     true,
+			expectRegistryContains: []string{"global", "team"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var reader client.Reader
+			if tt.k8sReader != nil {
+				reader = tt.k8sReader
+			} else if tt.existingCCs != nil {
+				reader = newFakeReader(tt.existingCCs...)
+			}
+			// tt.k8sReader == nil && tt.existingCCs == nil means nil reader (test for nil reader error path)
+
+			sub := NewContentConfigurationSubroutine(
+				validation.NewContentConfiguration(),
+				http.DefaultClient,
+				reader,
+				tt.registry,
+			)
+
+			cc := &cachev1alpha1.ContentConfiguration{
+				Spec: cachev1alpha1.ContentConfigurationSpec{
+					InlineConfiguration: &cachev1alpha1.InlineConfiguration{
+						Content:     tt.inlineContent,
+						ContentType: "json",
+					},
+				},
+			}
+
+			_, err := sub.Process(context.Background(), cc)
+
+			if tt.expectOperatorError {
+				require.NotNil(t, err, "expected an OperatorError but got nil")
+				return
+			}
+
+			require.Nil(t, err, "unexpected OperatorError: %v", err)
+
+			cond := getCondition(cc.Status.Conditions, ValidationConditionType)
+			assert.Equal(t, string(tt.expectValidCondition), string(cond.Status), "unexpected Valid condition status")
+			assert.Equal(t, tt.expectValidReason, cond.Reason, "unexpected Valid condition reason")
+
+			if tt.expectConfigResult {
+				assert.NotEmpty(t, cc.Status.ConfigurationResult, "expected ConfigurationResult to be set")
+			} else {
+				assert.Empty(t, cc.Status.ConfigurationResult, "expected ConfigurationResult to be empty")
+			}
+
+			if tt.registry != nil && len(tt.expectRegistryContains) > 0 {
+				known := tt.registry.KnownTypes()
+				for _, et := range tt.expectRegistryContains {
+					assert.True(t, known[et], "expected registry to contain entity type %q", et)
+				}
+			}
+		})
+	}
+}
+
+func TestProcess_RegistryInitOnlyRunsOnce(t *testing.T) {
+	reader := newFakeReader(
+		&cachev1alpha1.ContentConfiguration{
+			ObjectMeta: apimachinery.ObjectMeta{Name: "seed"},
+			Status: cachev1alpha1.ContentConfigurationStatus{
+				ConfigurationResult: validJSONDefiningEntityType("project"),
+			},
+		},
+	)
+
+	registry := validation.NewEntityTypeRegistry()
+	sub := NewContentConfigurationSubroutine(
+		validation.NewContentConfiguration(),
+		http.DefaultClient,
+		reader,
+		registry,
+	)
+
+	cc1 := &cachev1alpha1.ContentConfiguration{
+		Spec: cachev1alpha1.ContentConfigurationSpec{
+			InlineConfiguration: &cachev1alpha1.InlineConfiguration{
+				Content:     validJSONWithEntityType("global"),
+				ContentType: "json",
+			},
+		},
+	}
+
+	// First call: triggers registry init
+	_, err := sub.Process(context.Background(), cc1)
+	require.Nil(t, err)
+	assert.True(t, registry.KnownTypes()["project"], "registry should contain 'project' after init")
+
+	// Second call: should NOT re-init (registryInitDone is true)
+	cc2 := &cachev1alpha1.ContentConfiguration{
+		Spec: cachev1alpha1.ContentConfigurationSpec{
+			InlineConfiguration: &cachev1alpha1.InlineConfiguration{
+				Content:     validJSONWithEntityType("global"),
+				ContentType: "json",
+			},
+		},
+	}
+	_, err = sub.Process(context.Background(), cc2)
+	require.Nil(t, err)
+
+	// "project" should still be present (not wiped by a second Bulkload)
+	assert.True(t, registry.KnownTypes()["project"])
+}
+
+func TestProcess_NilRegistrySkipsEntityTypeValidation(t *testing.T) {
+	// When registry is nil, entity type validation is skipped entirely
+	sub := NewContentConfigurationSubroutine(
+		validation.NewContentConfiguration(),
+		http.DefaultClient,
+		nil,
+		nil,
+	)
+
+	// Use a CC that references a non-existent entity type -- should still pass
+	// because registry is nil, so no entity type validation runs.
+	cc := &cachev1alpha1.ContentConfiguration{
+		Spec: cachev1alpha1.ContentConfigurationSpec{
+			InlineConfiguration: &cachev1alpha1.InlineConfiguration{
+				Content:     validJSONWithEntityType("nonexistent"),
+				ContentType: "json",
+			},
+		},
+	}
+
+	_, err := sub.Process(context.Background(), cc)
+	require.Nil(t, err)
+
+	cond := getCondition(cc.Status.Conditions, ValidationConditionType)
+	assert.Equal(t, string(ConditionStatusTrue), string(cond.Status))
+	assert.NotEmpty(t, cc.Status.ConfigurationResult)
+}
+
+func TestProcess_EntityTypeValidationFailure_PreservesExistingConfigResult(t *testing.T) {
+	reader := newFakeReader()
+	registry := validation.NewEntityTypeRegistry()
+
+	sub := NewContentConfigurationSubroutine(
+		validation.NewContentConfiguration(),
+		http.DefaultClient,
+		reader,
+		registry,
+	)
+
+	existingResult := validJSONWithEntityType("global")
+	cc := &cachev1alpha1.ContentConfiguration{
+		Spec: cachev1alpha1.ContentConfigurationSpec{
+			InlineConfiguration: &cachev1alpha1.InlineConfiguration{
+				Content:     validJSONWithEntityType("unknown-type"),
+				ContentType: "json",
+			},
+		},
+		Status: cachev1alpha1.ContentConfigurationStatus{
+			ConfigurationResult: existingResult,
+		},
+	}
+
+	_, err := sub.Process(context.Background(), cc)
+	require.Nil(t, err)
+
+	// ConfigurationResult should not have been overwritten
+	assert.Equal(t, existingResult, cc.Status.ConfigurationResult)
+
+	cond := getCondition(cc.Status.Conditions, ValidationConditionType)
+	assert.Equal(t, string(ConditionStatusFalse), string(cond.Status))
+	assert.Equal(t, ValidationConditionReasonFailed, cond.Reason)
+	assert.Contains(t, cond.Message, "unknown-type")
+}
+
+func TestProcess_ValidCC_UpdatesRegistryWithDefinedEntityTypes(t *testing.T) {
+	reader := newFakeReader()
+	registry := validation.NewEntityTypeRegistry()
+
+	sub := NewContentConfigurationSubroutine(
+		validation.NewContentConfiguration(),
+		http.DefaultClient,
+		reader,
+		registry,
+	)
+
+	// Process a CC that defines a new entity type
+	cc := &cachev1alpha1.ContentConfiguration{
+		Spec: cachev1alpha1.ContentConfigurationSpec{
+			InlineConfiguration: &cachev1alpha1.InlineConfiguration{
+				Content:     validJSONDefiningEntityType("newentity"),
+				ContentType: "json",
+			},
+		},
+	}
+
+	_, err := sub.Process(context.Background(), cc)
+	require.Nil(t, err)
+
+	cond := getCondition(cc.Status.Conditions, ValidationConditionType)
+	assert.Equal(t, string(ConditionStatusTrue), string(cond.Status))
+
+	// After processing, the registry should now contain the newly defined entity type
+	known := registry.KnownTypes()
+	assert.True(t, known["newentity"], "registry should contain 'newentity' after processing CC that defines it")
+	assert.True(t, known["global"], "registry should always contain 'global'")
 }
