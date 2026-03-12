@@ -151,7 +151,7 @@ tasks:
     cmds:
       - task: envtest
   cover:
-    deps: [setup:envtest, test, setup:go-test-coverage]
+    deps: [mockery, setup:envtest, setup:kcp, setup:controller-gen, setup:go-test-coverage]
     cmds:
       - task: envtest
         vars:
