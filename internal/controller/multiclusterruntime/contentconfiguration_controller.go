@@ -26,6 +26,7 @@ import (
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/logger"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
@@ -47,7 +48,13 @@ type ContentConfigurationReconciler struct {
 func NewContentConfigurationReconciler(log *logger.Logger, mgr mcmanager.Manager, cfg config.OperatorConfig) *ContentConfigurationReconciler {
 	var subs []subroutine.Subroutine
 	if cfg.SubroutinesContentConfigurationEnabled {
-		subs = append(subs, subroutines.NewContentConfigurationSubroutine(validation.NewContentConfiguration(), http.DefaultClient))
+		var registry *validation.EntityTypeRegistry
+		var reader client.Reader
+		if cfg.EntityTypeValidationEnabled {
+			registry = validation.NewEntityTypeRegistry()
+			reader = mgr.GetLocalManager().GetClient()
+		}
+		subs = append(subs, subroutines.NewContentConfigurationSubroutine(validation.NewContentConfiguration(), http.DefaultClient, reader, registry))
 	}
 	return &ContentConfigurationReconciler{
 		lifecycle: builder.NewBuilder(controller.OperatorName, contentConfigurationReconcilerName, subs, log).

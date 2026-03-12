@@ -6,8 +6,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sync"
+	"sync/atomic"
 
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	"github.com/platform-mesh/golang-commons/errors"
@@ -30,21 +33,27 @@ const (
 )
 
 type ContentConfigurationSubroutine struct {
-	client      *http.Client
-	validator   validation.ExtensionConfiguration
-	transformer []transformer.ContentConfigurationTransformer
+	httpClient       *http.Client
+	validator        validation.ExtensionConfiguration
+	transformer      []transformer.ContentConfigurationTransformer
+	k8sReader        client.Reader
+	entityRegistry   *validation.EntityTypeRegistry
+	registryInitMu   sync.Mutex
+	registryInitDone atomic.Bool
 }
 
 func NewContentConfigurationSubroutine(validator validation.ExtensionConfiguration,
-	client *http.Client) *ContentConfigurationSubroutine {
+	httpClient *http.Client, k8sReader client.Reader, registry *validation.EntityTypeRegistry) *ContentConfigurationSubroutine {
 
 	transformers := []transformer.ContentConfigurationTransformer{
 		&transformer.UrlSuffixTransformer{},
 	}
 	return &ContentConfigurationSubroutine{
-		client:      client,
-		validator:   validator,
-		transformer: transformers,
+		httpClient:     httpClient,
+		validator:      validator,
+		transformer:    transformers,
+		k8sReader:      k8sReader,
+		entityRegistry: registry,
 	}
 }
 
@@ -69,6 +78,19 @@ func (r *ContentConfigurationSubroutine) Process(
 
 	log.Debug().Str("name", instance.Name).Msg("processing content configuration")
 
+	// Initialize entity type registry on first reconcile
+	if r.entityRegistry != nil && !r.registryInitDone.Load() {
+		r.registryInitMu.Lock()
+		if !r.registryInitDone.Load() {
+			if initErr := r.initEntityTypeRegistry(ctx, log); initErr != nil {
+				r.registryInitMu.Unlock()
+				return ctrl.Result{}, errors.NewOperatorError(initErr, true, false)
+			}
+			r.registryInitDone.Store(true)
+		}
+		r.registryInitMu.Unlock()
+	}
+
 	// Download or Retrieve ContentConfiguration Json
 	contentType, rawConfig, err := r.retrieveContentConfigurationData(instance, log)
 	if err != nil {
@@ -87,6 +109,22 @@ func (r *ContentConfigurationSubroutine) Process(
 		}
 		meta.SetStatusCondition(&instance.Status.Conditions, condition)
 		return ctrl.Result{}, nil
+	}
+
+	// Validate entityType references
+	if r.entityRegistry != nil {
+		entityTypeErr := r.validator.ValidateEntityTypes([]byte(validatedConfig), "json", r.entityRegistry)
+		if entityTypeErr != nil && entityTypeErr.Len() > 0 {
+			log.Err(entityTypeErr).Msg("failed to validate entity types")
+			condition := apimachinery.Condition{
+				Type:    ValidationConditionType,
+				Status:  ConditionStatusFalse,
+				Reason:  ValidationConditionReasonFailed,
+				Message: entityTypeErr.Error(),
+			}
+			meta.SetStatusCondition(&instance.Status.Conditions, condition)
+			return ctrl.Result{}, nil
+		}
 	}
 
 	condition := apimachinery.Condition{
@@ -118,7 +156,42 @@ func (r *ContentConfigurationSubroutine) Process(
 
 	// Store resulting configuration in the status
 	instance.Status.ConfigurationResult = validatedConfig
+
+	// Update entity type registry with this CC's definitions
+	if r.entityRegistry != nil {
+		r.entityRegistry.Load(*contentConfiguration)
+	}
+
 	return ctrl.Result{}, nil
+}
+
+func (r *ContentConfigurationSubroutine) initEntityTypeRegistry(ctx context.Context, log *logger.Logger) error {
+	if r.k8sReader == nil {
+		return fmt.Errorf("entity type registry requires a k8s reader but none was provided")
+	}
+
+	var ccList v1alpha1.ContentConfigurationList
+	if err := r.k8sReader.List(ctx, &ccList); err != nil {
+		log.Warn().Err(err).Msg("failed to list ContentConfigurations for entity type registry initialization, registry will be populated incrementally")
+		return nil
+	}
+
+	var configs []validation.ContentConfiguration
+	for _, cc := range ccList.Items {
+		if cc.Status.ConfigurationResult == "" {
+			continue
+		}
+		var parsed validation.ContentConfiguration
+		if err := json.Unmarshal([]byte(cc.Status.ConfigurationResult), &parsed); err != nil {
+			log.Warn().Err(err).Str("name", cc.Name).Msg("failed to parse ConfigurationResult for entity type registry")
+			continue
+		}
+		configs = append(configs, parsed)
+	}
+
+	r.entityRegistry.Bulkload(configs)
+	log.Info().Int("entityTypes", len(r.entityRegistry.KnownTypes())).Msg("initialized entity type registry")
+	return nil
 }
 
 func (r *ContentConfigurationSubroutine) retrieveContentConfigurationData(instance *v1alpha1.ContentConfiguration, log *logger.Logger) (string, []byte, error) {
@@ -156,7 +229,7 @@ func (r *ContentConfigurationSubroutine) getRemoteConfig(url string, log *logger
 		return nil, fmt.Errorf("failed to create request: %v", err)
 	}
 
-	resp, err := r.client.Do(req)
+	resp, err := r.httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %v", err)
 	}
