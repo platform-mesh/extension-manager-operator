@@ -18,8 +18,10 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
+	"os"
 	"time"
 
 	platformmeshcontext "github.com/platform-mesh/golang-commons/context"
@@ -27,8 +29,12 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/platform-mesh/extension-manager-operator/api/v1alpha1"
 	"github.com/platform-mesh/extension-manager-operator/internal/server"
 	"github.com/platform-mesh/extension-manager-operator/pkg/validation"
 )
@@ -68,8 +74,14 @@ func RunServer(_ *cobra.Command, _ []string) { // coverage-ignore
 	// Create Prometheus metrics handler
 	metricsHandler := promhttp.Handler()
 
+	// Initialize entity type registry from cluster if enabled
+	var registry *validation.EntityTypeRegistry
+	if serverCfg.EntityTypeValidationEnabled {
+		registry = initServerEntityTypeRegistry(ctx)
+	}
+
 	// Register Prometheus metrics endpoint
-	rt := server.CreateRouter(defaultCfg.IsLocal, log, validation.NewContentConfiguration())
+	rt := server.CreateRouter(defaultCfg.IsLocal, log, validation.NewContentConfiguration(), registry)
 	rt.Handle("/metrics", metricsHandler)
 
 	srv := &http.Server{
@@ -97,4 +109,54 @@ func RunServer(_ *cobra.Command, _ []string) { // coverage-ignore
 		log.Error().Err(err).Msg("Graceful shutdown failed")
 	}
 	log.Info().Msg("Server stopped")
+}
+
+func initServerEntityTypeRegistry(ctx context.Context) *validation.EntityTypeRegistry { // coverage-ignore
+	registry := validation.NewEntityTypeRegistry()
+
+	kubeconfigPath := os.Getenv("KUBECONFIG")
+	var restCfg *rest.Config
+	var err error
+	if kubeconfigPath != "" {
+		restCfg, err = clientcmd.BuildConfigFromFlags("", kubeconfigPath)
+		if err != nil {
+			log.Warn().Err(err).Msg("failed to load kubeconfig, entity type validation will only recognize 'global'")
+			return registry
+		}
+	} else {
+		restCfg, err = rest.InClusterConfig()
+		if err != nil {
+			log.Warn().Err(err).Msg("not running in cluster, entity type validation will only recognize 'global'")
+			return registry
+		}
+	}
+
+	k8sClient, err := client.New(restCfg, client.Options{Scheme: scheme})
+	if err != nil {
+		log.Warn().Err(err).Msg("failed to create k8s client, entity type validation will only recognize 'global'")
+		return registry
+	}
+
+	var ccList v1alpha1.ContentConfigurationList
+	if err := k8sClient.List(ctx, &ccList); err != nil {
+		log.Warn().Err(err).Msg("failed to list ContentConfigurations, entity type validation will only recognize 'global'")
+		return registry
+	}
+
+	var configs []validation.ContentConfiguration
+	for _, cc := range ccList.Items {
+		if cc.Status.ConfigurationResult == "" {
+			continue
+		}
+		var parsed validation.ContentConfiguration
+		if err := json.Unmarshal([]byte(cc.Status.ConfigurationResult), &parsed); err != nil {
+			log.Warn().Err(err).Str("name", cc.Name).Msg("failed to parse ConfigurationResult for entity type registry")
+			continue
+		}
+		configs = append(configs, parsed)
+	}
+
+	registry.Bulkload(configs)
+	log.Info().Int("entityTypes", len(registry.KnownTypes())).Msg("initialized server entity type registry")
+	return registry
 }

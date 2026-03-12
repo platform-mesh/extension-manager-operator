@@ -50,7 +50,13 @@ type ContentConfigurationReconciler struct {
 func NewContentConfigurationReconciler(log *logger.Logger, mgr mcmanager.Manager, cfg config.OperatorConfig) *ContentConfigurationReconciler {
 	var subs []subroutines.Subroutine
 	if cfg.SubroutinesContentConfigurationEnabled {
-		subs = append(subs, extsub.NewContentConfigurationSubroutine(validation.NewContentConfiguration(), http.DefaultClient))
+		var registry *validation.EntityTypeRegistry
+		var reader client.Reader
+		if cfg.EntityTypeValidationEnabled {
+			registry = validation.NewEntityTypeRegistry()
+			reader = mgr.GetLocalManager().GetClient()
+		}
+		subs = append(subs, extsub.NewContentConfigurationSubroutine(validation.NewContentConfiguration(), http.DefaultClient, reader, registry))
 	}
 	lc := lifecycle.New(mgr, contentConfigurationReconcilerName, func() client.Object {
 		return &v1alpha1.ContentConfiguration{}
