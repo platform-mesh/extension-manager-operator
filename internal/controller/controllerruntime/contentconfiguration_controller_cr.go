@@ -43,15 +43,20 @@ type ContentConfigurationReconcilerCR struct {
 }
 
 func NewContentConfigurationReconcilerCR(log *logger.Logger, mgr ctrl.Manager, cfg config.OperatorConfig) *ContentConfigurationReconcilerCR {
+	cl := mgr.GetClient()
 	var subs []subroutine.Subroutine
 	if cfg.SubroutinesContentConfigurationEnabled {
-		subs = append(subs, subroutines.NewContentConfigurationSubroutine(validation.NewContentConfiguration(), http.DefaultClient))
+		var registry *validation.EntityTypeRegistry
+		if cfg.EntityTypeValidationEnabled {
+			registry = validation.NewEntityTypeRegistry()
+		}
+		subs = append(subs, subroutines.NewContentConfigurationSubroutine(validation.NewContentConfiguration(), http.DefaultClient, cl, registry))
 	}
 	return &ContentConfigurationReconcilerCR{lifecycle: builder.
 		NewBuilder(controller.OperatorName, contentConfigurationReconcilerName, subs, log).
 		WithSpreadingReconciles().
 		WithConditionManagement().
-		BuildControllerRuntime(mgr.GetClient())}
+		BuildControllerRuntime(cl)}
 }
 
 func (r *ContentConfigurationReconcilerCR) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {

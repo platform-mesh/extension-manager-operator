@@ -40,7 +40,7 @@ func (suite *ContentConfigurationSubroutineTestSuite) SetupTest() {
 	suite.clientMock = new(mocks.Client)
 
 	// create new test object
-	suite.testObj = NewContentConfigurationSubroutine(validation.NewContentConfiguration(), http.DefaultClient)
+	suite.testObj = NewContentConfigurationSubroutine(validation.NewContentConfiguration(), http.DefaultClient, nil, nil)
 }
 
 func (suite *ContentConfigurationSubroutineTestSuite) TestCreateAndUpdate_OK() {
@@ -335,7 +335,7 @@ func TestService_Do(t *testing.T) {
 					httpmock.NewStringResponder(tt.mockStatusCode, tt.mockResponse))
 			}
 
-			r := NewContentConfigurationSubroutine(validation.NewContentConfiguration(), http.DefaultClient)
+			r := NewContentConfigurationSubroutine(validation.NewContentConfiguration(), http.DefaultClient, nil, nil)
 
 			body, err := r.getRemoteConfig(tt.url, log)
 			if tt.expectError {
