@@ -433,3 +433,128 @@ func allErrorsContained(merr multierror.Error, expectedErrors []string) bool {
 	}
 	return true
 }
+
+func TestParseContentConfiguration(t *testing.T) {
+	cC := NewContentConfiguration()
+
+	tests := []struct {
+		name        string
+		input       string
+		contentType string
+		expectError bool
+		expectName  string
+	}{
+		{
+			name:        "valid JSON",
+			input:       `{"name": "test", "luigiConfigFragment": {"data": {"nodes": [{"entityType": "global"}]}}}`,
+			contentType: "json",
+			expectName:  "test",
+		},
+		{
+			name:        "valid YAML",
+			input:       "name: test\nluigiConfigFragment:\n  data:\n    nodes:\n    - entityType: global\n",
+			contentType: "yaml",
+			expectName:  "test",
+		},
+		{
+			name:        "unsupported content type",
+			input:       "test",
+			contentType: "xml",
+			expectError: true,
+		},
+		{
+			name:        "invalid JSON",
+			input:       `{not json`,
+			contentType: "json",
+			expectError: true,
+		},
+		{
+			name:        "invalid YAML",
+			input:       "!invalid",
+			contentType: "yaml",
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cc, err := cC.ParseContentConfiguration([]byte(tt.input), tt.contentType)
+			if tt.expectError {
+				assert.Error(t, err)
+				assert.Nil(t, cc)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expectName, cc.Name)
+			}
+		})
+	}
+}
+
+func TestValidateEntityTypes(t *testing.T) {
+	cC := NewContentConfiguration()
+	registry := NewEntityTypeRegistry()
+	registry.Bulkload([]ContentConfiguration{
+		{
+			LuigiConfigFragment: LuigiConfigFragment{
+				Data: LuigiConfigData{
+					Nodes: []Node{
+						{EntityType: "global", DefineEntity: &DefineEntity{Id: "project"}},
+					},
+				},
+			},
+		},
+	})
+
+	tests := []struct {
+		name        string
+		input       string
+		contentType string
+		expectError bool
+		errorMsg    string
+	}{
+		{
+			name:        "valid entity type",
+			input:       `{"name": "test", "luigiConfigFragment": {"data": {"nodes": [{"entityType": "project"}]}}}`,
+			contentType: "json",
+		},
+		{
+			name:        "unknown entity type",
+			input:       `{"name": "test", "luigiConfigFragment": {"data": {"nodes": [{"entityType": "unknown"}]}}}`,
+			contentType: "json",
+			expectError: true,
+			errorMsg:    "unknown",
+		},
+		{
+			name:        "valid YAML input",
+			input:       "name: test\nluigiConfigFragment:\n  data:\n    nodes:\n    - entityType: global\n",
+			contentType: "yaml",
+		},
+		{
+			name:        "unsupported content type",
+			input:       "test",
+			contentType: "xml",
+			expectError: true,
+			errorMsg:    "no validator found",
+		},
+		{
+			name:        "invalid JSON unmarshal",
+			input:       `{not json`,
+			contentType: "json",
+			expectError: true,
+			errorMsg:    "error unmarshalling",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			merr := cC.ValidateEntityTypes([]byte(tt.input), tt.contentType, registry)
+			if tt.expectError {
+				assert.NotNil(t, merr)
+				assert.GreaterOrEqual(t, merr.Len(), 1)
+				assert.Contains(t, merr.Error(), tt.errorMsg)
+			} else {
+				assert.Nil(t, merr)
+			}
+		})
+	}
+}
