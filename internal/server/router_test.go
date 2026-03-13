@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -83,7 +84,7 @@ func TestCreateRouter(t *testing.T) {
 
 			validator := validation.NewContentConfiguration()
 
-			router := CreateRouter(tt.isLocal, log, validator)
+			router := CreateRouter(tt.isLocal, log, validator, nil)
 			assert.NotNil(t, router)
 
 			req := httptest.NewRequest(tt.method, tt.path, bytes.NewBufferString(tt.reqBody))
@@ -93,6 +94,78 @@ func TestCreateRouter(t *testing.T) {
 
 			assert.Equal(t, tt.expectCode, rr.Code)
 
+		})
+	}
+}
+
+func TestCreateRouter_WithEntityTypeRegistry(t *testing.T) {
+	registry := validation.NewEntityTypeRegistry()
+	registry.Bulkload([]validation.ContentConfiguration{
+		{
+			LuigiConfigFragment: validation.LuigiConfigFragment{
+				Data: validation.LuigiConfigData{
+					Nodes: []validation.Node{
+						{EntityType: "global", DefineEntity: &validation.DefineEntity{Id: "project"}},
+					},
+				},
+			},
+		},
+	})
+
+	tests := []struct {
+		name             string
+		reqBody          string
+		expectCode       int
+		expectValidation bool
+	}{
+		{
+			name: "valid entityType with registry",
+			reqBody: `{
+				"contentType": "json",
+				"contentConfiguration": "{\"name\": \"test\", \"luigiConfigFragment\": {\"data\": {\"nodes\": [{\"entityType\": \"global\", \"pathSegment\": \"home\"}]}}}"
+			}`,
+			expectCode: http.StatusOK,
+		},
+		{
+			name: "unknown entityType with registry",
+			reqBody: `{
+				"contentType": "json",
+				"contentConfiguration": "{\"name\": \"test\", \"luigiConfigFragment\": {\"data\": {\"nodes\": [{\"entityType\": \"nonexistent\", \"pathSegment\": \"home\"}]}}}"
+			}`,
+			expectCode:       http.StatusOK,
+			expectValidation: true,
+		},
+		{
+			name: "known entityType project with registry",
+			reqBody: `{
+				"contentType": "json",
+				"contentConfiguration": "{\"name\": \"test\", \"luigiConfigFragment\": {\"data\": {\"nodes\": [{\"entityType\": \"project\", \"pathSegment\": \"home\"}]}}}"
+			}`,
+			expectCode: http.StatusOK,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			log := initLog()
+			validator := validation.NewContentConfiguration()
+
+			router := CreateRouter(false, log, validator, registry)
+			assert.NotNil(t, router)
+
+			req := httptest.NewRequest(http.MethodPost, "/validate", bytes.NewBufferString(tt.reqBody))
+			rr := httptest.NewRecorder()
+
+			router.ServeHTTP(rr, req)
+
+			assert.Equal(t, tt.expectCode, rr.Code)
+
+			if tt.expectValidation {
+				var resp Response
+				err := json.NewDecoder(rr.Body).Decode(&resp)
+				assert.NoError(t, err)
+				assert.NotEmpty(t, resp.ValidationErrors)
+			}
 		})
 	}
 }
