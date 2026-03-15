@@ -37,7 +37,7 @@ require (
 	k8s.io/apimachinery v0.35.2
 	k8s.io/client-go v0.35.2
 	sigs.k8s.io/controller-runtime v0.23.1
-	sigs.k8s.io/multicluster-runtime v0.22.4-beta.1
+	sigs.k8s.io/multicluster-runtime v0.23.1
 	sigs.k8s.io/yaml v1.6.0
 )
 
