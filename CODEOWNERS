@@ -1,4 +1,4 @@
 # Default code owners
-* @openmfp/frame
+* @openmfp/frame @platform-mesh/go-approvers
 go.mod
 go.sum
