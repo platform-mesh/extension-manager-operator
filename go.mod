@@ -1,6 +1,6 @@
 module github.com/platform-mesh/extension-manager-operator
 
-go 1.25.0
+go 1.26
 
 replace (
 	github.com/platform-mesh/extension-manager-operator/api => ./api
