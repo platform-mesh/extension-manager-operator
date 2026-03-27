@@ -13,7 +13,7 @@ jobs:
     concurrency:
       group: ${{ github.ref }}
       cancel-in-progress: true
-    uses: platform-mesh/.github/.github/workflows/pipeline-golang-app.yml@f3aaa6f289ab188f46371a5bf9da6f0897038861 # main
+    uses: platform-mesh/.github/.github/workflows/pipeline-golang-app.yml@5c377e5944acf613950dfe83a13cc7ab3054728f # main
     secrets: inherit
     with:
       imageTagName: ghcr.io/platform-mesh/extension-manager-operator
