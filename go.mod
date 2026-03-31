@@ -7,7 +7,6 @@ replace (
 	k8s.io/api => k8s.io/api v0.35.3
 	k8s.io/apimachinery => k8s.io/apimachinery v0.35.3
 	k8s.io/client-go => k8s.io/client-go v0.35.3
-	sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.22.4
 )
 
 require (
@@ -18,14 +17,14 @@ require (
 	github.com/invopop/jsonschema v0.13.0
 	github.com/jarcoal/httpmock v1.4.1
 	github.com/kcp-dev/logicalcluster/v3 v3.0.5
-	github.com/kcp-dev/multicluster-provider v0.4.0
+	github.com/kcp-dev/multicluster-provider v0.5.1
 	github.com/kcp-dev/sdk v0.30.1
 	github.com/pkg/errors v0.9.1
 	github.com/platform-mesh/extension-manager-operator/api v0.7.56
 	github.com/platform-mesh/golang-commons v0.13.3
+	github.com/platform-mesh/subroutines v0.2.1
 	github.com/prometheus/client_golang v1.23.2
 	github.com/rs/cors v1.11.1
-	github.com/rs/zerolog v1.35.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
 	github.com/stretchr/testify v1.11.1
@@ -33,11 +32,10 @@ require (
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.67.0
 	golang.org/x/sync v0.20.0
 	gopkg.in/yaml.v3 v3.0.1
-	k8s.io/api v0.35.3
 	k8s.io/apimachinery v0.35.3
 	k8s.io/client-go v0.35.3
 	sigs.k8s.io/controller-runtime v0.23.1
-	sigs.k8s.io/multicluster-runtime v0.22.4-beta.1
+	sigs.k8s.io/multicluster-runtime v0.23.1
 	sigs.k8s.io/yaml v1.6.0
 )
 
@@ -84,6 +82,7 @@ require (
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.66.1 // indirect
 	github.com/prometheus/procfs v0.16.1 // indirect
+	github.com/rs/zerolog v1.35.0 // indirect
 	github.com/sosodev/duration v1.3.1 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/vektah/gqlparser/v2 v2.5.32 // indirect
@@ -115,6 +114,7 @@ require (
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
+	k8s.io/api v0.35.3 // indirect
 	k8s.io/apiextensions-apiserver v0.35.3 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20250910181357-589584f1c912 // indirect

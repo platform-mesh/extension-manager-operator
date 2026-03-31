@@ -26,7 +26,6 @@ import (
 
 	"github.com/kcp-dev/multicluster-provider/apiexport"
 	platformmeshcontext "github.com/platform-mesh/golang-commons/context"
-	"github.com/platform-mesh/golang-commons/logger"
 	"github.com/platform-mesh/golang-commons/traces"
 	"github.com/spf13/cobra"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -38,7 +37,6 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
-	"github.com/platform-mesh/extension-manager-operator/internal/config"
 	"github.com/platform-mesh/extension-manager-operator/internal/controller/multiclusterruntime"
 )
 
@@ -98,17 +96,9 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 			log.Fatal().Err(err).Msg("unable to get in-cluster config for leader election")
 		}
 	}
-	initializeManager(ctx, leaderElectionCfg, restCfg, log, *operatorCfg)
-}
-
-func initializeManager(ctx context.Context, leaderElectionCfg *rest.Config, kcpCfg *rest.Config, log *logger.Logger, operatorCfg config.OperatorConfig) {
-	log.Info().Msg("Initializing multicluster manager")
-	kcpCfg.Wrap(func(rt http.RoundTripper) http.RoundTripper {
-		return otelhttp.NewTransport(rt)
-	})
 
 	endpointSliceName := operatorCfg.KCPAPIExportEndpointSliceName
-	provider, err := apiexport.New(kcpCfg, endpointSliceName, apiexport.Options{
+	provider, err := apiexport.New(restCfg, endpointSliceName, apiexport.Options{
 		Scheme: scheme,
 	})
 	if err != nil {
@@ -116,7 +106,7 @@ func initializeManager(ctx context.Context, leaderElectionCfg *rest.Config, kcpC
 	}
 	log.Info().Str("endpointSliceName", endpointSliceName).Msg("KCP cluster provider created")
 
-	mgr, err := mcmanager.New(kcpCfg, provider, manager.Options{
+	mgr, err := mcmanager.New(restCfg, provider, manager.Options{
 		Scheme: scheme,
 		Metrics: metricsserver.Options{
 			BindAddress: defaultCfg.Metrics.BindAddress,
@@ -135,7 +125,7 @@ func initializeManager(ctx context.Context, leaderElectionCfg *rest.Config, kcpC
 		log.Fatal().Err(err).Msg("unable to set up overall controller manager")
 	}
 
-	contentConfigurationReconciler := multiclusterruntime.NewContentConfigurationReconciler(log, mgr, operatorCfg)
+	contentConfigurationReconciler := multiclusterruntime.NewContentConfigurationReconciler(log, mgr, *operatorCfg)
 	if err := contentConfigurationReconciler.SetupWithManager(mgr, defaultCfg, log); err != nil {
 		log.Fatal().Err(err).Str("controller", "ContentConfiguration").Msg("unable to create controller")
 	}
