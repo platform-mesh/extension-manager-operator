@@ -19,18 +19,20 @@ For reference, see the [RFC for Platform Mesh Extension Management - CDM Process
 - Services to allow validation of content configuration at runtime while developing a micro frontend on the developers system.
 - Ability to provide validation feedback while keeping the last validated content configuration.
 
-## Architecture (KCP mode)
+## Architecture (multi-cluster)
 
-When running with **KCP** (Kubernetes Control Plane) for multi-cluster, the operator uses two separate Kubernetes API configs:
+The operator always runs with **multicluster-runtime** and a KCP-style **APIExport** provider. It uses two separate Kubernetes REST configs:
 
 | Config | Source | Used for |
 |--------|--------|----------|
-| **KCP config** | `KUBECONFIG` env (e.g. mounted from a secret) | Discovery and multicluster provider: watching `APIExportEndpointSlice`, talking to the Root KCP API Server. |
-| **In-cluster config** | `rest.InClusterConfig()` | Leader election only: the Lease lives in the cluster where the pod runs. |
+| **Workload API config** | `KUBECONFIG` env (e.g. mounted from a secret), or in-cluster when unset | Discovery and multicluster provider: watching `APIExportEndpointSlice`, talking to the root API server. |
+| **Leader election config** | `rest.InClusterConfig()` when `--leader-elect` is enabled | Leader election only: the Lease lives in the cluster where the pod runs. |
 
-So discovery and APIExportEndpointSlice always use **KUBECONFIG**; leader election uses **in-cluster config** when running inside a cluster (same pattern as other platform-mesh operators).
+Discovery and `APIExportEndpointSlice` use **KUBECONFIG** when set; otherwise the client falls back to the standard in-cluster REST config. Leader election with `--leader-elect` **requires** a reachable in-cluster config.
 
-The name of the `APIExportEndpointSlice` to watch is configurable (flag `--kcp-api-export-endpoint-slice-name`; default is omitted so the provider auto-discovers). When set (e.g. to `core.platform-mesh.io`), only that slice is watched.
+The `APIExportEndpointSlice` name is set with `--kcp-api-export-endpoint-slice-name` (default `core.platform-mesh.io`).
+
+**Breaking changes (single-cluster mode removed):** The `--kcp-enabled` flag is gone; there is no standard single-manager controller-runtime path. Installations must target a Kubernetes API that exposes the KCP-style APIExport resources this operator expects (Platform Mesh / KCP). Update external Helm values if they still set `--kcp-enabled`.
 
 
 ## Getting Started

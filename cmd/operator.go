@@ -39,7 +39,6 @@ import (
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	"github.com/platform-mesh/extension-manager-operator/internal/config"
-	"github.com/platform-mesh/extension-manager-operator/internal/controller/controllerruntime"
 	"github.com/platform-mesh/extension-manager-operator/internal/controller/multiclusterruntime"
 )
 
@@ -79,7 +78,6 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 	kubeconfigPath := os.Getenv("KUBECONFIG")
 	var restCfg *rest.Config
 	if kubeconfigPath != "" {
-		var err error
 		restCfg, err = clientcmd.BuildConfigFromFlags("", kubeconfigPath)
 		if err != nil {
 			log.Fatal().Err(err).Msg("unable to load kubeconfig from KUBECONFIG env var")
@@ -92,24 +90,18 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 		return otelhttp.NewTransport(rt)
 	})
 
-	if operatorCfg.KCPEnabled {
-		log.Info().Msg("KCP mode enabled, initializing multicluster manager")
-		// Leader election: same as account-operator and security-operator — use in-cluster config for the lease; Fatal if not in cluster.
-		var leaderElectionCfg *rest.Config
-		if defaultCfg.LeaderElectionEnabled {
-			leaderElectionCfg, err = rest.InClusterConfig()
-			if err != nil {
-				log.Fatal().Err(err).Msg("unable to get in-cluster config for leader election")
-			}
+	log.Info().Msg("initializing multicluster manager")
+	var leaderElectionCfg *rest.Config
+	if defaultCfg.LeaderElectionEnabled {
+		leaderElectionCfg, err = rest.InClusterConfig()
+		if err != nil {
+			log.Fatal().Err(err).Msg("unable to get in-cluster config for leader election")
 		}
-		initializeMultiClusterManager(ctx, leaderElectionCfg, restCfg, log, *operatorCfg)
-	} else {
-		log.Info().Msg("KCP mode disabled, using standard controller-runtime manager")
-		initializeControllerRuntimeManager(ctx, restCfg)
 	}
+	initializeManager(ctx, leaderElectionCfg, restCfg, log, *operatorCfg)
 }
 
-func initializeMultiClusterManager(ctx context.Context, leaderElectionCfg *rest.Config, kcpCfg *rest.Config, log *logger.Logger, operatorCfg config.OperatorConfig) {
+func initializeManager(ctx context.Context, leaderElectionCfg *rest.Config, kcpCfg *rest.Config, log *logger.Logger, operatorCfg config.OperatorConfig) {
 	log.Info().Msg("Initializing multicluster manager")
 	kcpCfg.Wrap(func(rt http.RoundTripper) http.RoundTripper {
 		return otelhttp.NewTransport(rt)
@@ -159,46 +151,6 @@ func initializeMultiClusterManager(ctx context.Context, leaderElectionCfg *rest.
 	log.Info().Msg("starting multicluster manager")
 	startCtx := ctrl.SetupSignalHandler()
 	if err := mgr.Start(startCtx); err != nil {
-		log.Fatal().Err(err).Msg("problem running manager")
-	}
-}
-
-func initializeControllerRuntimeManager(ctx context.Context, restCfg *rest.Config) {
-	mgr, err := ctrl.NewManager(restCfg, ctrl.Options{
-		Scheme: scheme,
-		Metrics: metricsserver.Options{
-			BindAddress: defaultCfg.Metrics.BindAddress,
-			TLSOpts: []func(*tls.Config){
-				func(c *tls.Config) {
-					log.Info().Msg("disabling http/2")
-					c.NextProtos = []string{"http/1.1"}
-				},
-			},
-		},
-		BaseContext:                   func() context.Context { return ctx },
-		HealthProbeBindAddress:        defaultCfg.HealthProbeBindAddress,
-		LeaderElection:                defaultCfg.LeaderElectionEnabled,
-		LeaderElectionID:              "eengiex4.platform-mesh.io",
-		LeaderElectionReleaseOnCancel: true,
-	})
-	if err != nil {
-		log.Fatal().Err(err).Msg("unable to start manager")
-	}
-
-	contentConfigurationReconciler := controllerruntime.NewContentConfigurationReconcilerCR(log, mgr, *operatorCfg)
-	if err := contentConfigurationReconciler.SetupWithManager(mgr, defaultCfg, log); err != nil {
-		log.Fatal().Err(err).Str("controller", "ContentConfiguration").Msg("unable to create controller")
-	}
-
-	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
-		log.Fatal().Err(err).Msg("unable to set up health check")
-	}
-	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
-		log.Fatal().Err(err).Msg("unable to set up ready check")
-	}
-
-	log.Info().Msg("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		log.Fatal().Err(err).Msg("problem running manager")
 	}
 }

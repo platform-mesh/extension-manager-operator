@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jarcoal/httpmock"
 	"github.com/kcp-dev/multicluster-provider/apiexport"
 	platformmeshconfig "github.com/platform-mesh/golang-commons/config"
 	"github.com/platform-mesh/golang-commons/logger"
@@ -39,6 +40,8 @@ import (
 
 	"github.com/platform-mesh/extension-manager-operator/api/v1alpha1"
 	"github.com/platform-mesh/extension-manager-operator/internal/config"
+	commonTesting "github.com/platform-mesh/extension-manager-operator/pkg/util/testing"
+	"github.com/platform-mesh/extension-manager-operator/pkg/validation/validation_test"
 )
 
 const (
@@ -264,6 +267,233 @@ func (suite *ContentConfigurationTestSuite) TestProcessContentConfiguration() {
 	suite.verifyCondition(updatedCC.Status.Conditions, "Ready", metav1.ConditionTrue, "Complete")
 	suite.verifyCondition(updatedCC.Status.Conditions, "Valid", metav1.ConditionTrue, "ValidationSucceeded")
 }
+
+func (suite *ContentConfigurationTestSuite) TestContentConfigurationCRCreation() {
+	remoteURL := "https://this-address-should-be-mocked-by-httpmock"
+	testCases := []struct {
+		name           string
+		instanceName   string
+		spec           v1alpha1.ContentConfigurationSpec
+		expectedResult string
+	}{
+		{
+			name:         "TestInlineContentConfiguration",
+			instanceName: "inline",
+			spec: v1alpha1.ContentConfigurationSpec{
+				InlineConfiguration: &v1alpha1.InlineConfiguration{
+					ContentType: "yaml",
+					Content:     validation_test.GetValidYAML(),
+				},
+			},
+			expectedResult: validation_test.GetValidJSON(),
+		},
+		{
+			name:         "TestBothInlineAndRemoteConfiguration",
+			instanceName: "inline-and-remote",
+			spec: v1alpha1.ContentConfigurationSpec{
+				InlineConfiguration: &v1alpha1.InlineConfiguration{
+					ContentType: "yaml",
+					Content:     validation_test.GetValidYAML(),
+				},
+				RemoteConfiguration: &v1alpha1.RemoteConfiguration{
+					URL:         "this-url-should-not-be-used",
+					ContentType: "yaml",
+				},
+			},
+			expectedResult: validation_test.GetValidJSON(),
+		},
+		{
+			name:         "TestRemoteContentConfiguration",
+			instanceName: "remote",
+			spec: v1alpha1.ContentConfigurationSpec{
+				RemoteConfiguration: &v1alpha1.RemoteConfiguration{
+					ContentType: "json",
+					URL:         remoteURL,
+				},
+			},
+			expectedResult: validation_test.GetValidJSON(),
+		},
+	}
+
+	for _, tc := range testCases {
+		suite.Run(tc.name, func() {
+			httpmock.Activate()
+			defer httpmock.DeactivateAndReset()
+			httpmock.RegisterResponder(
+				"GET", remoteURL, httpmock.NewStringResponder(200, validation_test.GetValidJSON()),
+			)
+
+			testCtx := context.Background()
+			instance := &v1alpha1.ContentConfiguration{
+				ObjectMeta: metav1.ObjectMeta{Name: tc.instanceName},
+				Spec:       tc.spec,
+			}
+			err := suite.cli.Cluster(suite.consumer).Create(testCtx, instance)
+			suite.Require().NoError(err)
+
+			createdInstance := v1alpha1.ContentConfiguration{}
+			suite.Assert().Eventually(
+				func() bool {
+					err := suite.cli.Cluster(suite.consumer).Get(testCtx, types.NamespacedName{
+						Name: tc.instanceName,
+					}, &createdInstance)
+					equal, cErr := commonTesting.CompareJSON(tc.expectedResult,
+						createdInstance.Status.ConfigurationResult)
+					return err == nil && cErr == nil && equal
+				},
+				defaultTestTimeout, defaultTickInterval,
+			)
+		})
+	}
+}
+
+func (suite *ContentConfigurationTestSuite) TestUpdateReconcileCR() {
+	remoteURL := "https://this-address-should-be-mocked-by-httpmock"
+	testCtx := context.Background()
+	contentConfiguration := &v1alpha1.ContentConfiguration{
+		ObjectMeta: metav1.ObjectMeta{Name: "extension-manager"},
+		Spec: v1alpha1.ContentConfigurationSpec{
+			RemoteConfiguration: &v1alpha1.RemoteConfiguration{
+				ContentType: "json",
+				URL:         remoteURL,
+			},
+		},
+	}
+
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+	httpmock.RegisterResponder(
+		"GET", remoteURL, httpmock.NewStringResponder(200, validation_test.GetValidJSON()),
+	)
+
+	err := suite.cli.Cluster(suite.consumer).Create(testCtx, contentConfiguration)
+	suite.Require().NoError(err)
+
+	createdInstance := v1alpha1.ContentConfiguration{}
+	suite.Assert().Eventually(
+		func() bool {
+			err := suite.cli.Cluster(suite.consumer).Get(testCtx, types.NamespacedName{
+				Name: contentConfiguration.Name,
+			}, &createdInstance)
+			equal, cErr := commonTesting.CompareJSON(validation_test.GetValidJSON(),
+				createdInstance.Status.ConfigurationResult)
+			return err == nil && cErr == nil && equal
+		},
+		defaultTestTimeout, defaultTickInterval,
+	)
+
+	remoteURL = "https://new.url"
+	createdInstance.Spec.RemoteConfiguration.URL = remoteURL
+	httpmock.RegisterResponder(
+		"GET", remoteURL, httpmock.NewStringResponder(200, validation_test.GetValidJSONButDifferentName()),
+	)
+
+	err = suite.cli.Cluster(suite.consumer).Update(testCtx, &createdInstance)
+	suite.Require().NoError(err)
+
+	updatedInstance := v1alpha1.ContentConfiguration{}
+	suite.Assert().Eventually(
+		func() bool {
+			err := suite.cli.Cluster(suite.consumer).Get(testCtx, types.NamespacedName{
+				Name: contentConfiguration.Name,
+			}, &updatedInstance)
+			equal, cerr := commonTesting.CompareJSON(validation_test.GetValidJSONButDifferentName(),
+				updatedInstance.Status.ConfigurationResult)
+			return err == nil && cerr == nil && equal
+		},
+		defaultTestTimeout, defaultTickInterval,
+	)
+
+	remoteURL = "https://new.url2"
+	updatedInstance.Spec.RemoteConfiguration.URL = remoteURL
+	httpmock.Reset()
+	httpmock.RegisterResponder(
+		"GET", remoteURL, httpmock.NewStringResponder(200, validation_test.GetValidJSON()),
+	)
+
+	err = suite.cli.Cluster(suite.consumer).Update(testCtx, &updatedInstance)
+	suite.Require().NoError(err)
+
+	updatedInstanceSameURL := v1alpha1.ContentConfiguration{}
+	suite.Assert().Eventually(
+		func() bool {
+			err := suite.cli.Cluster(suite.consumer).Get(testCtx, types.NamespacedName{
+				Name: contentConfiguration.Name,
+			}, &updatedInstanceSameURL)
+			return err == nil &&
+				updatedInstanceSameURL.Status.ObservedGeneration == updatedInstanceSameURL.Generation
+		},
+		defaultTestTimeout, defaultTickInterval,
+	)
+	equal, err := commonTesting.CompareJSON(validation_test.GetValidJSON(),
+		updatedInstanceSameURL.Status.ConfigurationResult)
+	suite.NoError(err)
+	suite.True(equal)
+}
+
+func (suite *ContentConfigurationTestSuite) TestContentConfigurationCreationCRInternalURL() {
+	remoteURL := "https://this-address-should-be-mocked-by-httpmock"
+	internalURL := "http://internal-url"
+	testCtx := context.Background()
+	contentConfiguration := &v1alpha1.ContentConfiguration{
+		ObjectMeta: metav1.ObjectMeta{Name: "extension-manager-internal"},
+		Spec: v1alpha1.ContentConfigurationSpec{
+			RemoteConfiguration: &v1alpha1.RemoteConfiguration{
+				ContentType: "json",
+				InternalUrl: internalURL,
+				URL:         remoteURL,
+			},
+		},
+	}
+
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+	httpmock.RegisterResponder(
+		"GET", remoteURL, httpmock.NewStringResponder(200, validation_test.GetValidJSON()),
+	)
+
+	err := suite.cli.Cluster(suite.consumer).Create(testCtx, contentConfiguration)
+	suite.Require().NoError(err)
+
+	createdInstance := v1alpha1.ContentConfiguration{}
+	suite.Assert().Eventually(
+		func() bool {
+			err := suite.cli.Cluster(suite.consumer).Get(testCtx, types.NamespacedName{
+				Name: contentConfiguration.Name,
+			}, &createdInstance)
+			return err == nil && createdInstance.Status.ConfigurationResult == ""
+		},
+		defaultTestTimeout, defaultTickInterval,
+	)
+
+	httpmock.RegisterResponder(
+		"GET", internalURL, httpmock.NewStringResponder(200, validation_test.GetValidJSON()),
+	)
+
+	time.Sleep(2 * time.Second)
+	err = suite.cli.Cluster(suite.consumer).Get(testCtx, types.NamespacedName{
+		Name: contentConfiguration.Name,
+	}, &createdInstance)
+	suite.Require().NoError(err)
+	err = suite.cli.Cluster(suite.consumer).Update(testCtx, &createdInstance)
+	suite.Require().NoError(err)
+
+	time.Sleep(1 * time.Second)
+
+	updatedInstance := v1alpha1.ContentConfiguration{}
+	suite.Assert().Eventually(
+		func() bool {
+			err := suite.cli.Cluster(suite.consumer).Get(testCtx, types.NamespacedName{
+				Name: contentConfiguration.Name,
+			}, &updatedInstance)
+			equal, cErr := commonTesting.CompareJSON(validation_test.GetValidJSON(),
+				updatedInstance.Status.ConfigurationResult)
+			return err == nil && cErr == nil && equal
+		},
+		defaultTestTimeout, defaultTickInterval,
+	)
+}
+
 func TestContentConfigurationSuite(t *testing.T) {
 	suite.Run(t, new(ContentConfigurationTestSuite))
 }
