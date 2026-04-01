@@ -19,8 +19,8 @@ func (c *ServerConfig) AddFlags(fs *pflag.FlagSet) {
 }
 
 type OperatorConfig struct {
-	KCPAPIExportEndpointSliceName           string
-	SubroutinesContentConfigurationEnabled  bool
+	KCPAPIExportEndpointSliceName          string
+	SubroutinesContentConfigurationEnabled bool
 }
 
 func NewOperatorConfig() *OperatorConfig {
