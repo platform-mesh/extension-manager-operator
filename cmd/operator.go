@@ -25,6 +25,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/kcp-dev/multicluster-provider/apiexport"
+	"github.com/platform-mesh/extension-manager-operator/internal/controller"
 	platformmeshcontext "github.com/platform-mesh/golang-commons/context"
 	"github.com/platform-mesh/golang-commons/traces"
 	"github.com/spf13/cobra"
@@ -36,8 +37,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
-
-	"github.com/platform-mesh/extension-manager-operator/internal/controller/multiclusterruntime"
 )
 
 var operatorCmd = &cobra.Command{
@@ -125,7 +124,7 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 		log.Fatal().Err(err).Msg("unable to set up overall controller manager")
 	}
 
-	contentConfigurationReconciler := multiclusterruntime.NewContentConfigurationReconciler(log, mgr, *operatorCfg)
+	contentConfigurationReconciler := controller.NewContentConfigurationReconciler(log, mgr, *operatorCfg)
 	if err := contentConfigurationReconciler.SetupWithManager(mgr, defaultCfg, log); err != nil {
 		log.Fatal().Err(err).Str("controller", "ContentConfiguration").Msg("unable to create controller")
 	}
