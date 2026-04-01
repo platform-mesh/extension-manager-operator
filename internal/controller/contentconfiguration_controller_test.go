@@ -349,6 +349,8 @@ func (suite *ContentConfigurationTestSuite) TestContentConfigurationCRCreation()
 
 func (suite *ContentConfigurationTestSuite) TestUpdateReconcileCR() {
 	remoteURL := "https://this-address-should-be-mocked-by-httpmock"
+
+	// Given
 	testCtx := context.Background()
 	contentConfiguration := &v1alpha1.ContentConfiguration{
 		ObjectMeta: metav1.ObjectMeta{Name: "extension-manager"},
@@ -360,15 +362,18 @@ func (suite *ContentConfigurationTestSuite) TestUpdateReconcileCR() {
 		},
 	}
 
+	// setup mocks
 	httpmock.Activate()
 	defer httpmock.DeactivateAndReset()
 	httpmock.RegisterResponder(
 		"GET", remoteURL, httpmock.NewStringResponder(200, validation_test.GetValidJSON()),
 	)
 
+	// When
 	err := suite.cli.Cluster(suite.consumer).Create(testCtx, contentConfiguration)
 	suite.Require().NoError(err)
 
+	// Then
 	createdInstance := v1alpha1.ContentConfiguration{}
 	suite.Assert().Eventually(
 		func() bool {
@@ -382,15 +387,19 @@ func (suite *ContentConfigurationTestSuite) TestUpdateReconcileCR() {
 		defaultTestTimeout, defaultTickInterval,
 	)
 
+	// Update ContentConfiguration and check for 2nd reconcile
+	// Given
 	remoteURL = "https://new.url"
 	createdInstance.Spec.RemoteConfiguration.URL = remoteURL
 	httpmock.RegisterResponder(
 		"GET", remoteURL, httpmock.NewStringResponder(200, validation_test.GetValidJSONButDifferentName()),
 	)
 
+	// When
 	err = suite.cli.Cluster(suite.consumer).Update(testCtx, &createdInstance)
 	suite.Require().NoError(err)
 
+	// Then
 	updatedInstance := v1alpha1.ContentConfiguration{}
 	suite.Assert().Eventually(
 		func() bool {
@@ -404,6 +413,8 @@ func (suite *ContentConfigurationTestSuite) TestUpdateReconcileCR() {
 		defaultTestTimeout, defaultTickInterval,
 	)
 
+	// 3rd reconcile: the same URL but it returns a different content; changed labels
+	// Given
 	remoteURL = "https://new.url2"
 	updatedInstance.Spec.RemoteConfiguration.URL = remoteURL
 	httpmock.Reset()
@@ -411,9 +422,11 @@ func (suite *ContentConfigurationTestSuite) TestUpdateReconcileCR() {
 		"GET", remoteURL, httpmock.NewStringResponder(200, validation_test.GetValidJSON()),
 	)
 
+	// When
 	err = suite.cli.Cluster(suite.consumer).Update(testCtx, &updatedInstance)
 	suite.Require().NoError(err)
 
+	// Then
 	updatedInstanceSameURL := v1alpha1.ContentConfiguration{}
 	suite.Assert().Eventually(
 		func() bool {
