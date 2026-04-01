@@ -84,12 +84,12 @@ func (suite *ContentConfigurationTestSuite) SetupSuite() {
 	metricsserver.DefaultBindAddress = "0"
 
 	env = &envtest.Environment{}
-	env.BinaryAssetsDirectory = "../../../bin"
+	env.BinaryAssetsDirectory = "../../bin"
 	err = os.Setenv("PRESERVE", "true")
 	suite.Require().NoError(err, "failed to set PRESERVE environment variable")
 	kcpConfig, err = env.Start()
 	if err != nil {
-		suite.T().Skipf("envtest failed to start (e.g. missing kcp binary in bin/): %v", err)
+		suite.T().Fatalf("envtest failed to start (e.g. missing kcp binary in bin/): %v", err)
 	}
 
 	suite.cli, err = clusterclient.New(kcpConfig, client.Options{})
@@ -98,9 +98,9 @@ func (suite *ContentConfigurationTestSuite) SetupSuite() {
 	suite.consumerWS, suite.consumer = envtest.NewWorkspaceFixture(suite.T(), suite.cli, core.RootCluster.Path(), envtest.WithNamePrefix("consumer"))
 
 	// Prepare apiexports and resource schema
-	suite.loadFromFile("../../../test/setup/apiresourceschema-providermetadatas.ui.platform-mesh.io.yaml", suite.provider)
-	suite.loadFromFile("../../../test/setup/apiresourceschema-contentconfigurations.ui.platform-mesh.io.yaml", suite.provider)
-	suite.loadFromFile("../../../test/setup/apiexport-ui.platform-mesh.io.yaml", suite.provider)
+	suite.loadFromFile("../../test/setup/apiresourceschema-providermetadatas.ui.platform-mesh.io.yaml", suite.provider)
+	suite.loadFromFile("../../test/setup/apiresourceschema-contentconfigurations.ui.platform-mesh.io.yaml", suite.provider)
+	suite.loadFromFile("../../test/setup/apiexport-ui.platform-mesh.io.yaml", suite.provider)
 
 	// Create apiexportendpointslice
 	aes := &apisv1alpha1.APIExportEndpointSlice{
