@@ -13,77 +13,95 @@ import (
 	"github.com/platform-mesh/extension-manager-operator/api/v1alpha1"
 )
 
-// contentConfigurationSpread preserves golang-commons spread behavior for
-// ContentConfiguration (per-type max from GenerateNextReconcileTime).
-type contentConfigurationSpread struct{}
+// contentConfigurationSpreadManager implements lifecycle.SpreadManager to
+// reconcile ContentConfigurations every 12-24 hours for inline or 2,5-5 minutes
+// for remote ContentConfigurations. Respects
+// spread.RefreshLabel("platform-mesh.io/refresh-reconcile").
+type contentConfigurationSpreadManager struct{}
 
-const legacyDefaultMaxReconcileDuration = 24 * time.Hour
+const (
+	inlineMaxReconcileDuration = 24 * time.Hour
+	remoteMaxReconcileDuration = 5 * time.Minute
+)
 
-// legacyNextReconcileDelay returns a random duration between max/2 and max
+// nextReconcileDelay returns a random duration between max/2 and max
 // (same algorithm as golang-commons spread.getNextReconcileTime).
-func legacyNextReconcileDelay(maxReconcileTime time.Duration) time.Duration {
+func nextReconcileDelay(maxReconcileTime time.Duration) time.Duration {
 	minMinutes := maxReconcileTime.Minutes() / 2
 	jitter := rand.Int64N(int64(minMinutes))
 	return time.Duration(jitter+int64(minMinutes)) * time.Minute
 }
 
-func (contentConfigurationSpread) ReconcileRequired(obj client.Object) bool {
+func (contentConfigurationSpreadManager) ReconcileRequired(obj client.Object) bool {
 	cc := mustContentConfiguration(obj)
+
 	if cc.GetGeneration() != cc.Status.ObservedGeneration {
 		return true
 	}
+
 	labels := cc.GetLabels()
 	if labels != nil {
 		if _, has := labels[spread.RefreshLabel]; has {
 			return true
 		}
 	}
+
 	nrt := cc.Status.NextReconcileTime
 	if nrt.IsZero() {
 		return true
 	}
+
 	return time.Now().UTC().After(nrt.UTC())
 }
 
-func (contentConfigurationSpread) RequeueDelay(obj client.Object) time.Duration {
+func (contentConfigurationSpreadManager) RequeueDelay(obj client.Object) time.Duration {
 	cc := mustContentConfiguration(obj)
+
 	nrt := cc.Status.NextReconcileTime
 	if nrt.IsZero() {
 		return 0
 	}
+
 	remaining := time.Until(nrt.UTC())
 	if remaining < 0 {
 		return 0
 	}
+
 	return remaining
 }
 
-func (contentConfigurationSpread) SetNextReconcileTime(obj client.Object) {
+func (contentConfigurationSpreadManager) SetNextReconcileTime(obj client.Object) {
 	cc := mustContentConfiguration(obj)
-	border := legacyDefaultMaxReconcileDuration
-	if g := cc.GenerateNextReconcileTime(); g > 0 {
-		border = g
+
+	border := inlineMaxReconcileDuration
+	if cc.Spec.RemoteConfiguration != nil {
+		border = remoteMaxReconcileDuration
 	}
-	delay := legacyNextReconcileDelay(border)
+
+	delay := nextReconcileDelay(border)
 	cc.Status.NextReconcileTime = metav1.NewTime(time.Now().Add(delay))
 }
 
-func (contentConfigurationSpread) UpdateObservedGeneration(obj client.Object) {
+func (contentConfigurationSpreadManager) UpdateObservedGeneration(obj client.Object) {
 	cc := mustContentConfiguration(obj)
+
 	cc.Status.ObservedGeneration = cc.GetGeneration()
 }
 
-func (contentConfigurationSpread) RemoveRefreshLabel(obj client.Object) bool {
+func (contentConfigurationSpreadManager) RemoveRefreshLabel(obj client.Object) bool {
 	cc := mustContentConfiguration(obj)
+
 	labels := cc.GetLabels()
 	if labels == nil {
 		return false
 	}
+
 	if _, ok := labels[spread.RefreshLabel]; !ok {
 		return false
 	}
 	delete(labels, spread.RefreshLabel)
 	cc.SetLabels(labels)
+
 	return true
 }
 

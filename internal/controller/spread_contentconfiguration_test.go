@@ -22,7 +22,7 @@ func TestLegacyNextReconcileDelay_withinMax(t *testing.T) {
 	for _, max := range tests {
 		t.Run(max.String(), func(t *testing.T) {
 			for range 200 {
-				got := legacyNextReconcileDelay(max)
+				got := nextReconcileDelay(max)
 				require.GreaterOrEqual(t, got, max/2, "delay should be at least half of max")
 				require.Less(t, got, max, "delay should stay below max")
 			}
@@ -31,7 +31,7 @@ func TestLegacyNextReconcileDelay_withinMax(t *testing.T) {
 }
 
 func TestContentConfigurationSpread_ReconcileRequired(t *testing.T) {
-	var s contentConfigurationSpread
+	var s contentConfigurationSpreadManager
 
 	t.Run("wrong type panics", func(t *testing.T) {
 		pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "p"}}
@@ -112,7 +112,7 @@ func TestContentConfigurationSpread_ReconcileRequired(t *testing.T) {
 }
 
 func TestContentConfigurationSpread_RequeueDelay(t *testing.T) {
-	var s contentConfigurationSpread
+	var s contentConfigurationSpreadManager
 
 	t.Run("wrong type panics", func(t *testing.T) {
 		require.Panics(t, func() { _ = s.RequeueDelay(&corev1.Pod{}) })
@@ -150,7 +150,7 @@ func TestContentConfigurationSpread_RequeueDelay(t *testing.T) {
 }
 
 func TestContentConfigurationSpread_SetNextReconcileTime(t *testing.T) {
-	var s contentConfigurationSpread
+	var s contentConfigurationSpreadManager
 
 	t.Run("wrong type panics", func(t *testing.T) {
 		pod := &corev1.Pod{}
@@ -188,7 +188,7 @@ func TestContentConfigurationSpread_SetNextReconcileTime(t *testing.T) {
 }
 
 func TestContentConfigurationSpread_UpdateObservedGeneration(t *testing.T) {
-	var s contentConfigurationSpread
+	var s contentConfigurationSpreadManager
 
 	t.Run("wrong type panics", func(t *testing.T) {
 		pod := &corev1.Pod{
@@ -207,7 +207,7 @@ func TestContentConfigurationSpread_UpdateObservedGeneration(t *testing.T) {
 }
 
 func TestContentConfigurationSpread_RemoveRefreshLabel(t *testing.T) {
-	var s contentConfigurationSpread
+	var s contentConfigurationSpreadManager
 
 	t.Run("wrong type panics", func(t *testing.T) {
 		require.Panics(t, func() { _ = s.RemoveRefreshLabel(&corev1.Pod{}) })

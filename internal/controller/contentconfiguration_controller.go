@@ -56,7 +56,7 @@ func NewContentConfigurationReconciler(log *logger.Logger, mgr mcmanager.Manager
 		return &v1alpha1.ContentConfiguration{}
 	}, subs...).
 		WithConditions(conditions.NewManager()).
-		WithSpread(contentConfigurationSpread{}).
+		WithSpread(contentConfigurationSpreadManager{}).
 		WithPrepareContext(func(ctx context.Context, obj client.Object) (context.Context, error) {
 			return logger.SetLoggerInContext(ctx, log.ComponentLogger("ContentConfiguration")), nil
 		})
