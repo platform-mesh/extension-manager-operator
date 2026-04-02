@@ -19,22 +19,6 @@ For reference, see the [RFC for Platform Mesh Extension Management - CDM Process
 - Services to allow validation of content configuration at runtime while developing a micro frontend on the developers system.
 - Ability to provide validation feedback while keeping the last validated content configuration.
 
-## Architecture (multi-cluster)
-
-The operator always runs with **multicluster-runtime** and a KCP-style **APIExport** provider. It uses two separate Kubernetes REST configs:
-
-| Config | Source | Used for |
-|--------|--------|----------|
-| **Workload API config** | `KUBECONFIG` env (e.g. mounted from a secret), or in-cluster when unset | Discovery and multicluster provider: watching `APIExportEndpointSlice`, talking to the root API server. |
-| **Leader election config** | `rest.InClusterConfig()` when `--leader-elect` is enabled | Leader election only: the Lease lives in the cluster where the pod runs. |
-
-Discovery and `APIExportEndpointSlice` use **KUBECONFIG** when set; otherwise the client falls back to the standard in-cluster REST config. Leader election with `--leader-elect` **requires** a reachable in-cluster config.
-
-The `APIExportEndpointSlice` name is set with `--kcp-api-export-endpoint-slice-name` (default `core.platform-mesh.io`).
-
-**Breaking changes (single-cluster mode removed):** The `--kcp-enabled` flag is gone; there is no standard single-manager controller-runtime path. Installations must target a Kubernetes API that exposes the KCP-style APIExport resources this operator expects (Platform Mesh / KCP). Update external Helm values if they still set `--kcp-enabled`.
-
-
 ## Getting Started
 For running Platform Mesh locally checkout our [getting started guide](https://platform-mesh.github.io/platform-mesh.org/docs/getting-started). The extension-manager-operator can be deployed on a kubernetes cluster using the helm-chart [here](https://github.com/platform-mesh/helm-charts/tree/main/charts/extension-manager-operator) and for CRDs [here](https://github.com/platform-mesh/helm-charts/tree/main/charts/extension-manager-operator-crds).
 
