@@ -22,6 +22,7 @@ jobs:
       repoVersionUpdate: platform-mesh/helm-charts
       apiPackagePath: api
   quality-gate:
+    permissions: {}
     runs-on: ubuntu-latest
     timeout-minutes: 1
     steps:
