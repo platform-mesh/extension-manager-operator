@@ -87,7 +87,6 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 		return otelhttp.NewTransport(rt)
 	})
 
-	log.Info().Msg("initializing multicluster manager")
 	var leaderElectionCfg *rest.Config
 	if defaultCfg.LeaderElectionEnabled {
 		leaderElectionCfg, err = rest.InClusterConfig()
@@ -103,7 +102,6 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 	if err != nil {
 		log.Fatal().Err(err).Msg("unable to construct cluster provider")
 	}
-	log.Info().Str("endpointSliceName", endpointSliceName).Msg("KCP cluster provider created")
 
 	mgr, err := mcmanager.New(restCfg, provider, manager.Options{
 		Scheme: scheme,
@@ -128,7 +126,6 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 	if err := contentConfigurationReconciler.SetupWithManager(mgr, defaultCfg, log); err != nil {
 		log.Fatal().Err(err).Str("controller", "ContentConfiguration").Msg("unable to create controller")
 	}
-	log.Info().Str("controller", "ContentConfiguration").Msg("ContentConfiguration controller registered with multicluster manager")
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		log.Fatal().Err(err).Msg("unable to set up health check")
@@ -137,7 +134,6 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 		log.Fatal().Err(err).Msg("unable to set up ready check")
 	}
 
-	log.Info().Msg("starting multicluster manager")
 	startCtx := ctrl.SetupSignalHandler()
 	if err := mgr.Start(startCtx); err != nil {
 		log.Fatal().Err(err).Msg("problem running manager")
