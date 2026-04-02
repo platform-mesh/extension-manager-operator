@@ -27,9 +27,9 @@ const (
 // nextReconcileDelay returns a random duration between max/2 and max
 // (same algorithm as golang-commons spread.getNextReconcileTime).
 func nextReconcileDelay(maxReconcileTime time.Duration) time.Duration {
-	minMinutes := maxReconcileTime.Minutes() / 2
-	jitter := rand.Int64N(int64(minMinutes))
-	return time.Duration(jitter+int64(minMinutes)) * time.Minute
+	minimum := maxReconcileTime.Minutes() / 2 // At least every half of maximum
+	jitter := rand.Int64N(int64(minimum))     // Add random jitter within the other half
+	return time.Duration(jitter+int64(minimum)) * time.Minute
 }
 
 func (contentConfigurationSpreadManager) ReconcileRequired(obj client.Object) bool {
