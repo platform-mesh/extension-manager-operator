@@ -21,3 +21,8 @@ jobs:
       useLocalCoverageConfig: true
       repoVersionUpdate: platform-mesh/helm-charts
       apiPackagePath: api
+  quality-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - run: echo "OK"
