@@ -27,7 +27,7 @@ func TestServerConfig_AddFlags(t *testing.T) {
 func TestNewOperatorConfig(t *testing.T) {
 	cfg := NewOperatorConfig()
 
-	assert.Equal(t, "core.platform-mesh.io", cfg.KCPAPIExportEndpointSliceName)
+	assert.Equal(t, "", cfg.KCPAPIExportEndpointSliceName)
 	assert.True(t, cfg.SubroutinesContentConfigurationEnabled)
 }
 
