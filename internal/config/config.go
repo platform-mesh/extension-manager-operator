@@ -25,12 +25,11 @@ type OperatorConfig struct {
 
 func NewOperatorConfig() *OperatorConfig {
 	return &OperatorConfig{
-		KCPAPIExportEndpointSliceName:          "core.platform-mesh.io",
 		SubroutinesContentConfigurationEnabled: true,
 	}
 }
 
 func (c *OperatorConfig) AddFlags(fs *pflag.FlagSet) {
-	fs.StringVar(&c.KCPAPIExportEndpointSliceName, "kcp-api-export-endpoint-slice-name", c.KCPAPIExportEndpointSliceName, "API export endpoint slice name for multicluster discovery")
+	fs.StringVar(&c.KCPAPIExportEndpointSliceName, "kcp-api-export-endpoint-slice-name", c.KCPAPIExportEndpointSliceName, "Optional APIExportEndpointSlice name to reconcile against")
 	fs.BoolVar(&c.SubroutinesContentConfigurationEnabled, "subroutines-content-configuration-enabled", c.SubroutinesContentConfigurationEnabled, "Enable the content configuration subroutine")
 }

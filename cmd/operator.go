@@ -37,6 +37,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 )
 
 var operatorCmd = &cobra.Command{
@@ -53,37 +54,36 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 	defer shutdown()
 
 	var err error
-	var providerShutdown func(ctx context.Context) error
+	var traceProviderShutdown func(ctx context.Context) error
 	if defaultCfg.Tracing.Enabled {
-		providerShutdown, err = traces.InitProvider(ctx, defaultCfg.Tracing.Collector)
+		traceProviderShutdown, err = traces.InitProvider(ctx, defaultCfg.Tracing.Collector)
 		if err != nil {
 			log.Fatal().Err(err).Msg("unable to start gRPC-Sidecar TracerProvider")
 		}
 	} else {
-		providerShutdown, err = traces.InitLocalProvider(ctx, defaultCfg.Tracing.Collector, false)
+		traceProviderShutdown, err = traces.InitLocalProvider(ctx, defaultCfg.Tracing.Collector, false)
 		if err != nil {
 			log.Fatal().Err(err).Msg("unable to start local TracerProvider")
 		}
 	}
-
 	defer func() {
-		if err := providerShutdown(ctx); err != nil {
+		if err := traceProviderShutdown(ctx); err != nil {
 			log.Fatal().Err(err).Msg("failed to shutdown TracerProvider")
 		}
 	}()
 
 	kubeconfigPath := os.Getenv("KUBECONFIG")
-	var restCfg *rest.Config
+	var reconcileCfg *rest.Config
 	if kubeconfigPath != "" {
-		restCfg, err = clientcmd.BuildConfigFromFlags("", kubeconfigPath)
+		reconcileCfg, err = clientcmd.BuildConfigFromFlags("", kubeconfigPath)
 		if err != nil {
 			log.Fatal().Err(err).Msg("unable to load kubeconfig from KUBECONFIG env var")
 		}
 	} else {
 		log.Info().Msg("KUBECONFIG not set, using GetConfigOrDie()")
-		restCfg = ctrl.GetConfigOrDie()
+		reconcileCfg = ctrl.GetConfigOrDie()
 	}
-	restCfg.Wrap(func(rt http.RoundTripper) http.RoundTripper {
+	reconcileCfg.Wrap(func(rt http.RoundTripper) http.RoundTripper {
 		return otelhttp.NewTransport(rt)
 	})
 
@@ -95,15 +95,21 @@ func RunController(_ *cobra.Command, _ []string) { // coverage-ignore
 		}
 	}
 
-	endpointSliceName := operatorCfg.KCPAPIExportEndpointSliceName
-	provider, err := apiexport.New(restCfg, endpointSliceName, apiexport.Options{
-		Scheme: scheme,
-	})
-	if err != nil {
-		log.Fatal().Err(err).Msg("unable to construct cluster provider")
+	var mcProvider multicluster.Provider
+	if operatorCfg.KCPAPIExportEndpointSliceName != "" {
+		var p *apiexport.Provider
+		p, err = apiexport.New(reconcileCfg, operatorCfg.KCPAPIExportEndpointSliceName, apiexport.Options{
+			Scheme: scheme,
+		})
+		if err != nil {
+			log.Fatal().Err(err).Msg("unable to construct APIExportProvider")
+		}
+		log.Info().Msgf("Using APIExportProvider with EndpointSlice %s", operatorCfg.KCPAPIExportEndpointSliceName)
+
+		mcProvider = p
 	}
 
-	mgr, err := mcmanager.New(restCfg, provider, manager.Options{
+	mgr, err := mcmanager.New(reconcileCfg, mcProvider, manager.Options{
 		Scheme: scheme,
 		Metrics: metricsserver.Options{
 			BindAddress: defaultCfg.Metrics.BindAddress,
