@@ -1,5 +1,5 @@
 name: ci
-on: 
+on:
   push:
     branches:
       - main
@@ -9,7 +9,24 @@ on:
       - synchronize
 
 jobs:
+  detect-api-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      api_changed: ${{ steps.filter.outputs.api }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            api:
+              - 'api/**'
+
   pipe:
+    needs: detect-api-changes
+    if: ${{ needs.detect-api-changes.outputs.api_changed == 'true' }}
     concurrency:
       group: ${{ github.ref }}
       cancel-in-progress: true
@@ -21,3 +38,17 @@ jobs:
       useLocalCoverageConfig: true
       repoVersionUpdate: platform-mesh/helm-charts
       apiPackagePath: api
+
+  pipe-without-api-release:
+    needs: detect-api-changes
+    if: ${{ needs.detect-api-changes.outputs.api_changed != 'true' }}
+    concurrency:
+      group: ${{ github.ref }}
+      cancel-in-progress: true
+    uses: platform-mesh/.github/.github/workflows/pipeline-golang-app.yml@main
+    secrets: inherit
+    with:
+      imageTagName: ghcr.io/platform-mesh/extension-manager-operator
+      useTask: true
+      useLocalCoverageConfig: true
+      repoVersionUpdate: platform-mesh/helm-charts
