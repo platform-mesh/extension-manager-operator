@@ -21,6 +21,22 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  detect-api-changes:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    outputs:
+      api_changed: ${{ steps.filter.outputs.api }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            api:
+              - 'api/**'
+
   # ──────────────────────────────────────────────
   # Always-run jobs (PR + main)
   # ──────────────────────────────────────────────
@@ -72,12 +88,34 @@ jobs:
   # ──────────────────────────────────────────────
   # Release jobs (main branch only)
   # ──────────────────────────────────────────────
-  create-version:
-    if: github.ref == 'refs/heads/main'
+  create-version-with-api:
+    if: github.ref == 'refs/heads/main' && needs.detect-api-changes.outputs.api_changed == 'true'
+    needs: [detect-api-changes]
     uses: platform-mesh/.github/.github/workflows/job-create-version.yml@main
     secrets: inherit
     with:
       apiPackagePath: api
+
+  create-version-without-api:
+    if: github.ref == 'refs/heads/main' && needs.detect-api-changes.outputs.api_changed != 'true'
+    needs: [detect-api-changes]
+    uses: platform-mesh/.github/.github/workflows/job-create-version.yml@main
+    secrets: inherit
+
+  create-version:
+    if: github.ref == 'refs/heads/main'
+    needs: [create-version-with-api, create-version-without-api]
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.resolve.outputs.version }}
+    steps:
+      - id: resolve
+        run: |
+          if [[ -n "${{ needs.create-version-with-api.outputs.version }}" ]]; then
+            echo "version=${{ needs.create-version-with-api.outputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=${{ needs.create-version-without-api.outputs.version }}" >> "$GITHUB_OUTPUT"
+          fi
 
   docker-build-push:
     if: github.ref == 'refs/heads/main'
