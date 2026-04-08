@@ -2,5 +2,12 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "local>platform-mesh/.github:renovate-config"
+  ],
+  "packageRules": [
+    {
+      "description": "Ignore self-referencing API module — operator uses replace directive to ./api",
+      "matchPackageNames": ["github.com/platform-mesh/extension-manager-operator/api"],
+      "enabled": false
+    }
   ]
 }
