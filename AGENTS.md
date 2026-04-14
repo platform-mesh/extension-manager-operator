@@ -21,6 +21,27 @@
 - `config/crd`, `config/resources`, `config/out`: generated manifests and packaged CRDs.
 - `docs` and `docs/development`: product and developer documentation.
 
+## Architecture
+This is a multicluster `ContentConfiguration` operator with a thin controller and most business logic delegated to a lifecycle subroutine.
+
+### Runtime model
+- `cmd/operator.go` chooses the reconcile config from `KUBECONFIG` if present, otherwise `ctrl.GetConfigOrDie()`.
+- If `--kcp-api-export-endpoint-slice-name` is set, the manager is a multicluster manager backed by an APIExport provider; otherwise it reconciles against plain Kubernetes.
+- Leader election, when enabled, uses `rest.InClusterConfig()` separately from the reconcile config.
+
+### Reconciliation model
+- `ContentConfigurationReconciler` uses `mcreconcile.Request`, `mcbuilder.ControllerManagedBy(mgr)`, and `lifecycle.Lifecycle.Reconcile`.
+- The controller is intentionally thin: the main behavior lives in `pkg/subroutines` via `NewContentConfigurationSubroutine(...)`.
+- Conditions are managed by `conditions.NewManager()` wired into the lifecycle; avoid setting them ad hoc.
+
+### Domain model
+- `ContentConfiguration` is the core API. Validation and transformation logic live outside the controller in `pkg/validation` and `pkg/transformer`.
+- Runtime HTTP/server behavior lives under `internal/server`, so not every change belongs in the reconciler path.
+
+### Configuration and tests
+- `internal/config/config.go` defines the operator flags, including whether the content configuration subroutine is enabled.
+- Controller tests use envtest; generated artifacts under `config/resources`, `config/out`, and CRD output must stay in sync with API changes.
+
 ## Commands
 - `task fmt` — format Go code.
 - `task lint` — run formatting plus golangci-lint.
