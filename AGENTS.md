@@ -61,5 +61,5 @@
 - Keep generated and manual edits easy to review; separate them when feasible.
 
 ## Human-Facing Guidance
-- Use `CONTRIBUTING.md` for contribution workflow, DCO, and testing expectations.
-- Use `README.md` and `docs/` for domain context and operator behavior.
+- Use `README.md` for local setup and high-level context.
+- Use `CONTRIBUTING.md` for contribution process, DCO, and broader developer workflow expectations.
