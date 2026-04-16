@@ -21,8 +21,8 @@ require (
 	github.com/kcp-dev/sdk v0.30.1
 	github.com/pkg/errors v0.9.1
 	github.com/platform-mesh/extension-manager-operator/api v0.0.0-local
-	github.com/platform-mesh/golang-commons v0.14.0
-	github.com/platform-mesh/subroutines v0.3.0
+	github.com/platform-mesh/golang-commons v0.15.5
+	github.com/platform-mesh/subroutines v0.3.1
 	github.com/prometheus/client_golang v1.23.2
 	github.com/rs/cors v1.11.1
 	github.com/spf13/cobra v1.10.2
@@ -53,8 +53,8 @@ require (
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.1 // indirect
-	github.com/getsentry/sentry-go v0.43.0 // indirect
-	github.com/go-jose/go-jose/v4 v4.1.3 // indirect
+	github.com/getsentry/sentry-go v0.44.1 // indirect
+	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-logr/zerologr v1.2.3 // indirect
@@ -121,7 +121,7 @@ require (
 	gomodules.xyz/jsonpatch/v2 v2.5.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260319201613-d00831a3d3e7 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260319201613-d00831a3d3e7 // indirect
-	google.golang.org/grpc v1.79.3 // indirect
+	google.golang.org/grpc v1.80.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
