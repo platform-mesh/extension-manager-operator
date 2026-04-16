@@ -22,7 +22,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/platform-mesh/extension-manager-operator/api v0.0.0-local
 	github.com/platform-mesh/golang-commons v0.15.5
-	github.com/platform-mesh/subroutines v0.3.1
+	github.com/platform-mesh/subroutines v0.3.2
 	github.com/prometheus/client_golang v1.23.2
 	github.com/rs/cors v1.11.1
 	github.com/spf13/cobra v1.10.2
