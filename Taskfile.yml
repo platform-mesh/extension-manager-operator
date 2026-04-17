@@ -171,6 +171,15 @@ tasks:
   run:
     cmds:
       - go run ./main.go operator
+  fuzz:
+    desc: "Run fuzz tests with a configurable duration (default 30s per target)"
+    vars:
+      FUZZTIME: '{{.FUZZTIME | default "30s"}}'
+    cmds:
+      - cd api && go test ./v1alpha1/ -run=^$ -fuzz=FuzzContentConfigurationRoundTrip -fuzztime={{.FUZZTIME}} -count=1
+      - cd api && go test ./v1alpha1/ -run=^$ -fuzz=FuzzProviderMetadataRoundTrip -fuzztime={{.FUZZTIME}} -count=1
+      - go test ./pkg/validation/ -run=^$ -fuzz=FuzzValidate -fuzztime={{.FUZZTIME}} -count=1
+
   copynamespacedcrd:
     cmd: |
          cp -rf config/crd/bases/* config/out/
