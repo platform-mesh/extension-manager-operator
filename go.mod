@@ -18,7 +18,7 @@ require (
 	github.com/jarcoal/httpmock v1.4.1
 	github.com/kcp-dev/logicalcluster/v3 v3.0.5
 	github.com/kcp-dev/multicluster-provider v0.5.1
-	github.com/kcp-dev/sdk v0.30.1
+	github.com/kcp-dev/sdk v0.30.3
 	github.com/pkg/errors v0.9.1
 	github.com/platform-mesh/extension-manager-operator/api v0.0.0-local
 	github.com/platform-mesh/golang-commons v0.15.6
@@ -80,7 +80,7 @@ require (
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/kcp-dev/apimachinery/v2 v2.30.1 // indirect
+	github.com/kcp-dev/apimachinery/v2 v2.30.3 // indirect
 	github.com/mailru/easyjson v0.9.2 // indirect
 	github.com/martinlindhe/base36 v1.1.1 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
