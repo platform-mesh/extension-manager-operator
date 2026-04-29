@@ -21,7 +21,7 @@ require (
 	github.com/kcp-dev/sdk v0.31.0
 	github.com/pkg/errors v0.9.1
 	github.com/platform-mesh/extension-manager-operator/api v0.0.0-local
-	github.com/platform-mesh/golang-commons v0.16.4
+	github.com/platform-mesh/golang-commons v0.16.5
 	github.com/platform-mesh/subroutines v0.3.3
 	github.com/prometheus/client_golang v1.23.2
 	github.com/rs/cors v1.11.1
