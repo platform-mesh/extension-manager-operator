@@ -22,7 +22,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/platform-mesh/extension-manager-operator/api v0.0.0-local
 	github.com/platform-mesh/golang-commons v0.16.6
-	github.com/platform-mesh/subroutines v0.3.3
+	github.com/platform-mesh/subroutines v0.4.2
 	github.com/prometheus/client_golang v1.23.2
 	github.com/rs/cors v1.11.1
 	github.com/spf13/cobra v1.10.2
@@ -36,7 +36,7 @@ require (
 	k8s.io/apimachinery v0.35.4
 	k8s.io/client-go v1.5.2
 	sigs.k8s.io/controller-runtime v0.23.3
-	sigs.k8s.io/multicluster-runtime v0.23.1
+	sigs.k8s.io/multicluster-runtime v0.23.3
 	sigs.k8s.io/yaml v1.6.0
 )
 
