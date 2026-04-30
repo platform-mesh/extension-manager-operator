@@ -17,7 +17,7 @@ require (
 	github.com/invopop/jsonschema v0.13.0
 	github.com/jarcoal/httpmock v1.4.1
 	github.com/kcp-dev/logicalcluster/v3 v3.0.5
-	github.com/kcp-dev/multicluster-provider v0.5.1
+	github.com/kcp-dev/multicluster-provider v0.6.0
 	github.com/kcp-dev/sdk v0.31.0
 	github.com/pkg/errors v0.9.1
 	github.com/platform-mesh/extension-manager-operator/api v0.0.0-local
