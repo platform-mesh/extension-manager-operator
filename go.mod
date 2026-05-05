@@ -21,7 +21,7 @@ require (
 	github.com/kcp-dev/sdk v0.31.1
 	github.com/pkg/errors v0.9.1
 	github.com/platform-mesh/extension-manager-operator/api v0.0.0-local
-	github.com/platform-mesh/golang-commons v0.16.7
+	github.com/platform-mesh/golang-commons v0.16.8
 	github.com/platform-mesh/subroutines v0.3.3
 	github.com/prometheus/client_golang v1.23.2
 	github.com/rs/cors v1.11.1
@@ -93,7 +93,7 @@ require (
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.67.5 // indirect
 	github.com/prometheus/procfs v0.20.1 // indirect
-	github.com/rs/zerolog v1.35.0 // indirect
+	github.com/rs/zerolog v1.35.1 // indirect
 	github.com/sosodev/duration v1.4.0 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/vektah/gqlparser/v2 v2.5.32 // indirect
