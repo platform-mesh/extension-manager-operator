@@ -21,7 +21,7 @@ require (
 	github.com/kcp-dev/sdk v0.31.1
 	github.com/pkg/errors v0.9.1
 	github.com/platform-mesh/extension-manager-operator/api v0.0.0-local
-	github.com/platform-mesh/golang-commons v0.16.10
+	github.com/platform-mesh/golang-commons v0.16.11
 	github.com/platform-mesh/subroutines v0.3.3
 	github.com/prometheus/client_golang v1.23.2
 	github.com/rs/cors v1.11.1
@@ -41,7 +41,7 @@ require (
 )
 
 require (
-	github.com/99designs/gqlgen v0.17.89 // indirect
+	github.com/99designs/gqlgen v0.17.90 // indirect
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/buger/jsonparser v1.1.2 // indirect
@@ -83,7 +83,7 @@ require (
 	github.com/kcp-dev/apimachinery/v2 v2.31.1 // indirect
 	github.com/martinlindhe/base36 v1.1.1 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
-	github.com/mattn/go-isatty v0.0.20 // indirect
+	github.com/mattn/go-isatty v0.0.21 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
