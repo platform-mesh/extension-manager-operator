@@ -99,6 +99,7 @@ func (r *EntityTypeRegistry) Validate(cc ContentConfiguration) []error {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
+	selfDefined := collectDefinedEntityTypes(cc)
 	refs := collectReferencedEntityTypes(cc)
 	var errs []error
 	for _, ref := range refs {
@@ -106,7 +107,7 @@ func (r *EntityTypeRegistry) Validate(cc ContentConfiguration) []error {
 		if normalized == "" {
 			continue
 		}
-		if r.types[normalized] == 0 {
+		if r.types[normalized] == 0 && !selfDefined[normalized] {
 			errs = append(errs, fmt.Errorf("unknown entityType %q", ref))
 		}
 	}

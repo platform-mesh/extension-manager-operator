@@ -90,7 +90,7 @@ func (h *HttpValidateHandler) HandlerValidate(w http.ResponseWriter, r *http.Req
 
 	// entity type validation
 	if h.entityRegistry != nil {
-		entityTypeErr := h.validator.ValidateEntityTypes([]byte(request.ContentConfiguration), request.ContentType, h.entityRegistry)
+		entityTypeErr := h.validator.ValidateEntityTypes([]byte(parsedConfig), "json", h.entityRegistry)
 		if entityTypeErr != nil && entityTypeErr.Len() > 0 {
 			h.writeValidationErrors(w, entityTypeErr)
 			return

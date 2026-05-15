@@ -881,3 +881,60 @@ func TestFinalizers_ReturnsNilWhenRegistryDisabled(t *testing.T) {
 	finalizers := sub.Finalizers(nil)
 	assert.Nil(t, finalizers)
 }
+
+func TestProcess_SelfReferencingCC_DefinesAndUsesOwnEntityType(t *testing.T) {
+	reader := newFakeReader()
+	registry := validation.NewEntityTypeRegistry()
+
+	sub := NewContentConfigurationSubroutine(
+		validation.NewContentConfiguration(),
+		http.DefaultClient,
+		reader,
+		registry,
+	)
+
+	// This CC defines "project" via defineEntity AND references "project" on a child node.
+	// It should pass validation because a CC is allowed to reference types it defines itself.
+	selfReferencingJSON := `{
+		"name": "self-ref-cc",
+		"luigiConfigFragment": {
+			"data": {
+				"nodes": [
+					{
+						"entityType": "global",
+						"pathSegment": "root",
+						"defineEntity": {
+							"id": "project",
+							"contextKey": "projectId"
+						},
+						"children": [
+							{
+								"entityType": "project",
+								"pathSegment": "overview",
+								"label": "Overview"
+							}
+						]
+					}
+				]
+			}
+		}
+	}`
+
+	cc := &cachev1alpha1.ContentConfiguration{
+		ObjectMeta: apimachinery.ObjectMeta{Name: "self-ref", UID: "uid-self-ref"},
+		Spec: cachev1alpha1.ContentConfigurationSpec{
+			InlineConfiguration: &cachev1alpha1.InlineConfiguration{
+				Content:     selfReferencingJSON,
+				ContentType: "json",
+			},
+		},
+	}
+
+	_, err := sub.Process(context.Background(), cc)
+	require.Nil(t, err)
+
+	cond := getCondition(cc.Status.Conditions, ValidationConditionType)
+	assert.Equal(t, string(ConditionStatusTrue), string(cond.Status),
+		"a CC that defines and references its own entity type should pass validation")
+	assert.NotEmpty(t, cc.Status.ConfigurationResult)
+}

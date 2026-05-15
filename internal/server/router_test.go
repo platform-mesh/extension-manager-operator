@@ -98,6 +98,34 @@ func TestCreateRouter(t *testing.T) {
 	}
 }
 
+func TestCreateRouter_SelfReferencingCC(t *testing.T) {
+	registry := validation.NewEntityTypeRegistry()
+
+	log := initLog()
+	validator := validation.NewContentConfiguration()
+	router := CreateRouter(false, log, validator, registry)
+
+	// CC defines "project" via defineEntity and references it on a child node.
+	// The registry only knows "global", so without the self-referencing fix this would fail.
+	reqBody := `{
+		"contentType": "json",
+		"contentConfiguration": "{\"name\": \"self-ref\", \"luigiConfigFragment\": {\"data\": {\"nodes\": [{\"entityType\": \"global\", \"pathSegment\": \"root\", \"defineEntity\": {\"id\": \"project\"}, \"children\": [{\"entityType\": \"project\", \"pathSegment\": \"overview\"}]}]}}}"
+	}`
+
+	req := httptest.NewRequest(http.MethodPost, "/validate", bytes.NewBufferString(reqBody))
+	rr := httptest.NewRecorder()
+
+	router.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+
+	var resp Response
+	err := json.NewDecoder(rr.Body).Decode(&resp)
+	assert.NoError(t, err)
+	assert.Empty(t, resp.ValidationErrors, "self-referencing CC should pass entity type validation")
+	assert.NotEmpty(t, resp.ParsedConfiguration)
+}
+
 func TestCreateRouter_WithEntityTypeRegistry(t *testing.T) {
 	registry := validation.NewEntityTypeRegistry()
 	registry.Bulkload([]validation.ContentConfiguration{

@@ -462,6 +462,64 @@ func TestEntityTypeRegistry_Validate(t *testing.T) {
 			},
 			expectCount: 2,
 		},
+		{
+			name: "self-referencing CC defines and uses own type",
+			cc: ContentConfiguration{
+				LuigiConfigFragment: LuigiConfigFragment{
+					Data: LuigiConfigData{
+						Nodes: []Node{
+							{
+								EntityType:   "global",
+								DefineEntity: &DefineEntity{Id: "mytype"},
+								Children: []Node{
+									{EntityType: "mytype"},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectCount: 0,
+		},
+		{
+			name: "self-referencing CC with nested defineEntity",
+			cc: ContentConfiguration{
+				LuigiConfigFragment: LuigiConfigFragment{
+					Data: LuigiConfigData{
+						Nodes: []Node{
+							{
+								EntityType:   "project",
+								DefineEntity: &DefineEntity{Id: "sub"},
+								Children: []Node{
+									{EntityType: "project.sub"},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectCount: 0,
+		},
+		{
+			name: "self-referencing but also uses truly unknown type",
+			cc: ContentConfiguration{
+				LuigiConfigFragment: LuigiConfigFragment{
+					Data: LuigiConfigData{
+						Nodes: []Node{
+							{
+								EntityType:   "global",
+								DefineEntity: &DefineEntity{Id: "mytype"},
+								Children: []Node{
+									{EntityType: "mytype"},
+									{EntityType: "doesnotexist"},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectCount: 1,
+		},
 	}
 
 	for _, tt := range tests {

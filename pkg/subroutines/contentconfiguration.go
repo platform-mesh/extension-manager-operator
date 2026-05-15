@@ -9,6 +9,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/hashicorp/go-multierror"
 	"github.com/platform-mesh/golang-commons/logger"
 	"github.com/platform-mesh/subroutines"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -104,16 +105,27 @@ func (r *ContentConfigurationSubroutine) Process(ctx context.Context, obj client
 		return subroutines.OK(), nil
 	}
 
-	// Validate entityType references
+	// Parse the validated JSON into a ContentConfiguration struct
+	contentConfiguration := &validation.ContentConfiguration{}
+	err = json.Unmarshal([]byte(validatedConfig), contentConfiguration)
+	if err != nil {
+		return subroutines.OK(), fmt.Errorf("failed to unmarshal contentConfiguration: %w", err)
+	}
+
+	// Validate entityType references against the parsed struct directly
 	if r.entityRegistry != nil {
-		entityTypeErr := r.validator.ValidateEntityTypes([]byte(validatedConfig), "json", r.entityRegistry)
-		if entityTypeErr != nil && entityTypeErr.Len() > 0 {
-			log.Err(entityTypeErr).Msg("failed to validate entity types")
+		entityTypeErrs := r.entityRegistry.Validate(*contentConfiguration)
+		if len(entityTypeErrs) > 0 {
+			merr := &multierror.Error{}
+			for _, e := range entityTypeErrs {
+				merr = multierror.Append(merr, e)
+			}
+			log.Err(merr).Msg("failed to validate entity types")
 			condition := apimachinery.Condition{
 				Type:    ValidationConditionType,
 				Status:  ConditionStatusFalse,
 				Reason:  ValidationConditionReasonFailed,
-				Message: entityTypeErr.Error(),
+				Message: merr.Error(),
 			}
 			meta.SetStatusCondition(&instance.Status.Conditions, condition)
 			return subroutines.OK(), nil
@@ -128,12 +140,7 @@ func (r *ContentConfigurationSubroutine) Process(ctx context.Context, obj client
 	}
 	meta.SetStatusCondition(&instance.Status.Conditions, condition)
 
-	// Transform ContentConfiguration Json
-	contentConfiguration := &validation.ContentConfiguration{}
-	err = json.Unmarshal([]byte(validatedConfig), contentConfiguration)
-	if err != nil {
-		return subroutines.OK(), fmt.Errorf("failed to unmarshal contentConfiguration: %w", err)
-	}
+	// Transform ContentConfiguration
 	for _, configurationTransformer := range r.transformer {
 		err := configurationTransformer.Transform(contentConfiguration, instance)
 		if err != nil {
