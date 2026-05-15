@@ -130,6 +130,10 @@ func convertYAMLToJSON(yamlData []byte) ([]byte, error) {
 }
 
 func (cC *contentConfiguration) ValidateEntityTypes(input []byte, contentType string, registry *EntityTypeRegistry) *multierror.Error {
+	if registry == nil {
+		return multierror.Append(nil, fmt.Errorf("entity type registry is nil"))
+	}
+
 	rawJSON, err := toJSON(input, contentType)
 	if err != nil {
 		return multierror.Append(nil, err)
