@@ -27,9 +27,11 @@ const (
 	ValidationConditionReasonFailed    = "ValidationFailed"
 	ConditionStatusTrue                = "True"
 	ConditionStatusFalse               = "False"
+	entityTypeFinalizerName            = "extension-manager.platform-mesh.io/entity-type-registry"
 )
 
 var _ subroutines.Processor = (*ContentConfigurationSubroutine)(nil)
+var _ subroutines.Finalizer = (*ContentConfigurationSubroutine)(nil)
 
 type ContentConfigurationSubroutine struct {
 	httpClient       *http.Client
@@ -150,10 +152,36 @@ func (r *ContentConfigurationSubroutine) Process(ctx context.Context, obj client
 
 	// Update entity type registry with this CC's definitions
 	if r.entityRegistry != nil {
-		r.entityRegistry.Load(*contentConfiguration)
+		r.entityRegistry.LoadForOwner(ownerKey(instance), *contentConfiguration)
 	}
 
 	return subroutines.OK(), nil
+}
+
+func (r *ContentConfigurationSubroutine) Finalizers(_ client.Object) []string {
+	if r.entityRegistry == nil {
+		return nil
+	}
+	return []string{entityTypeFinalizerName}
+}
+
+func (r *ContentConfigurationSubroutine) Finalize(_ context.Context, obj client.Object) (subroutines.Result, error) {
+	if r.entityRegistry == nil {
+		return subroutines.OK(), nil
+	}
+	instance, ok := obj.(*v1alpha1.ContentConfiguration)
+	if !ok {
+		return subroutines.OK(), fmt.Errorf("expected *v1alpha1.ContentConfiguration, got %T", obj)
+	}
+	r.entityRegistry.RemoveOwner(ownerKey(instance))
+	return subroutines.OK(), nil
+}
+
+func ownerKey(cc *v1alpha1.ContentConfiguration) string {
+	if cc.UID != "" {
+		return string(cc.UID)
+	}
+	return cc.Namespace + "/" + cc.Name
 }
 
 func (r *ContentConfigurationSubroutine) initEntityTypeRegistry(ctx context.Context, log *logger.Logger) error {
@@ -167,8 +195,9 @@ func (r *ContentConfigurationSubroutine) initEntityTypeRegistry(ctx context.Cont
 		return nil
 	}
 
-	var configs []validation.ContentConfiguration
-	for _, cc := range ccList.Items {
+	configs := make(map[string]validation.ContentConfiguration)
+	for i := range ccList.Items {
+		cc := &ccList.Items[i]
 		if cc.Status.ConfigurationResult == "" {
 			continue
 		}
@@ -177,10 +206,10 @@ func (r *ContentConfigurationSubroutine) initEntityTypeRegistry(ctx context.Cont
 			log.Warn().Err(err).Str("name", cc.Name).Msg("failed to parse ConfigurationResult for entity type registry")
 			continue
 		}
-		configs = append(configs, parsed)
+		configs[ownerKey(cc)] = parsed
 	}
 
-	r.entityRegistry.Bulkload(configs)
+	r.entityRegistry.BulkloadWithOwners(configs)
 	log.Info().Int("entityTypes", len(r.entityRegistry.KnownTypes())).Msg("initialized entity type registry")
 	return nil
 }

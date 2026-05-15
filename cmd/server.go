@@ -114,6 +114,17 @@ func RunServer(_ *cobra.Command, _ []string) { // coverage-ignore
 func initServerEntityTypeRegistry(ctx context.Context) *validation.EntityTypeRegistry { // coverage-ignore
 	registry := validation.NewEntityTypeRegistry()
 
+	k8sClient := buildServerK8sClient()
+	if k8sClient == nil {
+		return registry
+	}
+
+	loadRegistryFromCluster(ctx, k8sClient, registry)
+	go refreshRegistryPeriodically(ctx, k8sClient, registry)
+	return registry
+}
+
+func buildServerK8sClient() client.Reader { // coverage-ignore
 	kubeconfigPath := os.Getenv("KUBECONFIG")
 	var restCfg *rest.Config
 	var err error
@@ -121,26 +132,29 @@ func initServerEntityTypeRegistry(ctx context.Context) *validation.EntityTypeReg
 		restCfg, err = clientcmd.BuildConfigFromFlags("", kubeconfigPath)
 		if err != nil {
 			log.Warn().Err(err).Msg("failed to load kubeconfig, entity type validation will only recognize 'global'")
-			return registry
+			return nil
 		}
 	} else {
 		restCfg, err = rest.InClusterConfig()
 		if err != nil {
 			log.Warn().Err(err).Msg("not running in cluster, entity type validation will only recognize 'global'")
-			return registry
+			return nil
 		}
 	}
 
 	k8sClient, err := client.New(restCfg, client.Options{Scheme: scheme})
 	if err != nil {
 		log.Warn().Err(err).Msg("failed to create k8s client, entity type validation will only recognize 'global'")
-		return registry
+		return nil
 	}
+	return k8sClient
+}
 
+func loadRegistryFromCluster(ctx context.Context, k8sClient client.Reader, registry *validation.EntityTypeRegistry) { // coverage-ignore
 	var ccList v1alpha1.ContentConfigurationList
 	if err := k8sClient.List(ctx, &ccList); err != nil {
 		log.Warn().Err(err).Msg("failed to list ContentConfigurations, entity type validation will only recognize 'global'")
-		return registry
+		return
 	}
 
 	var configs []validation.ContentConfiguration
@@ -158,5 +172,17 @@ func initServerEntityTypeRegistry(ctx context.Context) *validation.EntityTypeReg
 
 	registry.Bulkload(configs)
 	log.Info().Int("entityTypes", len(registry.KnownTypes())).Msg("initialized server entity type registry")
-	return registry
+}
+
+func refreshRegistryPeriodically(ctx context.Context, k8sClient client.Reader, registry *validation.EntityTypeRegistry) { // coverage-ignore
+	ticker := time.NewTicker(5 * time.Minute)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			loadRegistryFromCluster(ctx, k8sClient, registry)
+		}
+	}
 }

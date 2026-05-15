@@ -1,6 +1,7 @@
 package validation
 
 import (
+	"fmt"
 	"sync"
 	"testing"
 
@@ -264,7 +265,7 @@ func TestEntityTypeRegistry_Update(t *testing.T) {
 		},
 	}
 
-	registry.Load(cc)
+	registry.LoadForOwner("uid-1", cc)
 	types := registry.KnownTypes()
 
 	assert.True(t, types["global"])
@@ -288,10 +289,10 @@ func TestEntityTypeRegistry_Remove(t *testing.T) {
 		},
 	}
 
-	registry.Load(cc)
+	registry.LoadForOwner("uid-1", cc)
 	require.True(t, registry.KnownTypes()["project"])
 
-	registry.Remove(cc)
+	registry.RemoveOwner("uid-1")
 	assert.False(t, registry.KnownTypes()["project"])
 	assert.True(t, registry.KnownTypes()["global"])
 }
@@ -299,16 +300,7 @@ func TestEntityTypeRegistry_Remove(t *testing.T) {
 func TestEntityTypeRegistry_Remove_RefCounting(t *testing.T) {
 	registry := NewEntityTypeRegistry()
 
-	cc1 := ContentConfiguration{
-		LuigiConfigFragment: LuigiConfigFragment{
-			Data: LuigiConfigData{
-				Nodes: []Node{
-					{EntityType: "global", DefineEntity: &DefineEntity{Id: "project"}},
-				},
-			},
-		},
-	}
-	cc2 := ContentConfiguration{
+	cc := ContentConfiguration{
 		LuigiConfigFragment: LuigiConfigFragment{
 			Data: LuigiConfigData{
 				Nodes: []Node{
@@ -318,12 +310,12 @@ func TestEntityTypeRegistry_Remove_RefCounting(t *testing.T) {
 		},
 	}
 
-	registry.Load(cc1)
-	registry.Load(cc2)
+	registry.LoadForOwner("uid-1", cc)
+	registry.LoadForOwner("uid-2", cc)
 	require.True(t, registry.KnownTypes()["project"])
 
 	// Remove one — "project" should still be known
-	registry.Remove(cc1)
+	registry.RemoveOwner("uid-1")
 	assert.True(t, registry.KnownTypes()["project"])
 
 	// Validate still passes
@@ -337,7 +329,7 @@ func TestEntityTypeRegistry_Remove_RefCounting(t *testing.T) {
 	assert.Empty(t, errs)
 
 	// Remove the second — now "project" should be gone
-	registry.Remove(cc2)
+	registry.RemoveOwner("uid-2")
 	assert.False(t, registry.KnownTypes()["project"])
 
 	// Validate now fails
@@ -525,7 +517,7 @@ func TestEntityTypeRegistry_ConcurrentAccess(t *testing.T) {
 	registry := NewEntityTypeRegistry()
 
 	var wg sync.WaitGroup
-	for range 100 {
+	for i := range 100 {
 		wg.Add(2)
 		go func() {
 			defer wg.Done()
@@ -538,7 +530,7 @@ func TestEntityTypeRegistry_ConcurrentAccess(t *testing.T) {
 					},
 				},
 			}
-			registry.Load(cc)
+			registry.LoadForOwner(fmt.Sprintf("uid-%d", i), cc)
 		}()
 		go func() {
 			defer wg.Done()
@@ -604,4 +596,201 @@ func TestValidateEntityTypes_Integration(t *testing.T) {
 	require.NotNil(t, merr)
 	assert.GreaterOrEqual(t, merr.Len(), 1)
 	assert.Contains(t, merr.Error(), "nonexistent")
+}
+
+func TestEntityTypeRegistry_LoadForOwner_Idempotent(t *testing.T) {
+	registry := NewEntityTypeRegistry()
+
+	cc := ContentConfiguration{
+		LuigiConfigFragment: LuigiConfigFragment{
+			Data: LuigiConfigData{
+				Nodes: []Node{
+					{EntityType: "global", DefineEntity: &DefineEntity{Id: "project"}},
+				},
+			},
+		},
+	}
+
+	registry.LoadForOwner("uid-1", cc)
+	registry.LoadForOwner("uid-1", cc)
+	registry.LoadForOwner("uid-1", cc)
+
+	types := registry.KnownTypes()
+	assert.True(t, types["project"])
+	assert.True(t, types["global"])
+	assert.Len(t, types, 2)
+
+	// After removing once, project should be gone
+	registry.RemoveOwner("uid-1")
+	types = registry.KnownTypes()
+	assert.False(t, types["project"])
+	assert.True(t, types["global"])
+}
+
+func TestEntityTypeRegistry_LoadForOwner_UpdateTypes(t *testing.T) {
+	registry := NewEntityTypeRegistry()
+
+	cc1 := ContentConfiguration{
+		LuigiConfigFragment: LuigiConfigFragment{
+			Data: LuigiConfigData{
+				Nodes: []Node{
+					{EntityType: "global", DefineEntity: &DefineEntity{Id: "project"}},
+				},
+			},
+		},
+	}
+
+	cc2 := ContentConfiguration{
+		LuigiConfigFragment: LuigiConfigFragment{
+			Data: LuigiConfigData{
+				Nodes: []Node{
+					{EntityType: "global", DefineEntity: &DefineEntity{Id: "team"}},
+				},
+			},
+		},
+	}
+
+	registry.LoadForOwner("uid-1", cc1)
+	assert.True(t, registry.KnownTypes()["project"])
+
+	// Update the same owner with different types
+	registry.LoadForOwner("uid-1", cc2)
+	types := registry.KnownTypes()
+	assert.False(t, types["project"], "old type should be removed")
+	assert.True(t, types["team"], "new type should be added")
+}
+
+func TestEntityTypeRegistry_LoadForOwner_MultipleOwners(t *testing.T) {
+	registry := NewEntityTypeRegistry()
+
+	cc := ContentConfiguration{
+		LuigiConfigFragment: LuigiConfigFragment{
+			Data: LuigiConfigData{
+				Nodes: []Node{
+					{EntityType: "global", DefineEntity: &DefineEntity{Id: "project"}},
+				},
+			},
+		},
+	}
+
+	registry.LoadForOwner("uid-1", cc)
+	registry.LoadForOwner("uid-2", cc)
+
+	// Both define "project", removing one should keep it
+	registry.RemoveOwner("uid-1")
+	assert.True(t, registry.KnownTypes()["project"])
+
+	// Removing the second should remove it
+	registry.RemoveOwner("uid-2")
+	assert.False(t, registry.KnownTypes()["project"])
+}
+
+func TestEntityTypeRegistry_RemoveOwner_NonExistent(t *testing.T) {
+	registry := NewEntityTypeRegistry()
+
+	// Should not panic
+	registry.RemoveOwner("nonexistent-uid")
+	assert.True(t, registry.KnownTypes()["global"])
+}
+
+func TestEntityTypeRegistry_BulkloadWithOwners(t *testing.T) {
+	registry := NewEntityTypeRegistry()
+
+	configs := map[string]ContentConfiguration{
+		"uid-1": {
+			LuigiConfigFragment: LuigiConfigFragment{
+				Data: LuigiConfigData{
+					Nodes: []Node{
+						{EntityType: "global", DefineEntity: &DefineEntity{Id: "project"}},
+					},
+				},
+			},
+		},
+		"uid-2": {
+			LuigiConfigFragment: LuigiConfigFragment{
+				Data: LuigiConfigData{
+					Nodes: []Node{
+						{EntityType: "global", DefineEntity: &DefineEntity{Id: "team"}},
+					},
+				},
+			},
+		},
+	}
+
+	registry.BulkloadWithOwners(configs)
+	types := registry.KnownTypes()
+	assert.True(t, types["global"])
+	assert.True(t, types["project"])
+	assert.True(t, types["team"])
+	assert.Len(t, types, 3)
+
+	// Subsequent LoadForOwner for same uid should be idempotent
+	registry.LoadForOwner("uid-1", configs["uid-1"])
+	types = registry.KnownTypes()
+	assert.Len(t, types, 3)
+
+	// Removing uid-1 should remove project
+	registry.RemoveOwner("uid-1")
+	types = registry.KnownTypes()
+	assert.False(t, types["project"])
+	assert.True(t, types["team"])
+}
+
+func TestEntityTypeRegistry_Bulkload_ClearsOwners(t *testing.T) {
+	registry := NewEntityTypeRegistry()
+
+	registry.LoadForOwner("uid-1", ContentConfiguration{
+		LuigiConfigFragment: LuigiConfigFragment{
+			Data: LuigiConfigData{
+				Nodes: []Node{
+					{EntityType: "global", DefineEntity: &DefineEntity{Id: "project"}},
+				},
+			},
+		},
+	})
+
+	// Bulkload resets everything including owners
+	registry.Bulkload([]ContentConfiguration{})
+	types := registry.KnownTypes()
+	assert.Len(t, types, 1)
+	assert.True(t, types["global"])
+
+	// RemoveOwner for the old uid should be a no-op
+	registry.RemoveOwner("uid-1")
+	assert.True(t, registry.KnownTypes()["global"])
+}
+
+func TestEntityTypeRegistry_ConcurrentAccess_WithOwners(t *testing.T) {
+	registry := NewEntityTypeRegistry()
+
+	var wg sync.WaitGroup
+	for i := range 100 {
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			cc := ContentConfiguration{
+				LuigiConfigFragment: LuigiConfigFragment{
+					Data: LuigiConfigData{
+						Nodes: []Node{
+							{EntityType: "global", DefineEntity: &DefineEntity{Id: "project"}},
+						},
+					},
+				},
+			}
+			registry.LoadForOwner(fmt.Sprintf("uid-%d", i), cc)
+		}()
+		go func() {
+			defer wg.Done()
+			registry.Validate(ContentConfiguration{
+				LuigiConfigFragment: LuigiConfigFragment{
+					Data: LuigiConfigData{
+						Nodes: []Node{
+							{EntityType: "project"},
+						},
+					},
+				},
+			})
+		}()
+	}
+	wg.Wait()
 }

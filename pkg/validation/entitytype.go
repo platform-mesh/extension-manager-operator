@@ -6,17 +6,16 @@ import (
 	"sync"
 )
 
-// EntityTypeRegistry is a thread-safe registry of known entity types.
-// Entity types are reference-counted so that Remove only deletes a type
-// when no other ContentConfiguration still defines it.
 type EntityTypeRegistry struct {
-	mu    sync.RWMutex
-	types map[string]int // entity type → reference count
+	mu     sync.RWMutex
+	types  map[string]int            // entity type → reference count
+	owners map[string]map[string]bool // owner key → set of entity types it contributes
 }
 
 func NewEntityTypeRegistry() *EntityTypeRegistry {
 	return &EntityTypeRegistry{
-		types: map[string]int{"global": 1},
+		types:  map[string]int{"global": 1},
+		owners: make(map[string]map[string]bool),
 	}
 }
 
@@ -25,6 +24,7 @@ func (r *EntityTypeRegistry) Bulkload(configs []ContentConfiguration) {
 	defer r.mu.Unlock()
 
 	r.types = map[string]int{"global": 1}
+	r.owners = make(map[string]map[string]bool)
 	for _, cc := range configs {
 		for et := range collectDefinedEntityTypes(cc) {
 			r.types[et]++
@@ -32,26 +32,65 @@ func (r *EntityTypeRegistry) Bulkload(configs []ContentConfiguration) {
 	}
 }
 
-func (r *EntityTypeRegistry) Load(cc ContentConfiguration) {
+func (r *EntityTypeRegistry) BulkloadWithOwners(configs map[string]ContentConfiguration) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	for et := range collectDefinedEntityTypes(cc) {
-		r.types[et]++
+	r.types = map[string]int{"global": 1}
+	r.owners = make(map[string]map[string]bool)
+	for owner, cc := range configs {
+		defined := collectDefinedEntityTypes(cc)
+		r.owners[owner] = defined
+		for et := range defined {
+			r.types[et]++
+		}
 	}
 }
 
-func (r *EntityTypeRegistry) Remove(cc ContentConfiguration) {
+func (r *EntityTypeRegistry) LoadForOwner(owner string, cc ContentConfiguration) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	for et := range collectDefinedEntityTypes(cc) {
+	newTypes := collectDefinedEntityTypes(cc)
+
+	if oldTypes, exists := r.owners[owner]; exists {
+		for et := range oldTypes {
+			if !newTypes[et] {
+				if r.types[et] <= 1 {
+					delete(r.types, et)
+				} else {
+					r.types[et]--
+				}
+			}
+		}
+	}
+
+	for et := range newTypes {
+		if r.owners[owner] == nil || !r.owners[owner][et] {
+			r.types[et]++
+		}
+	}
+
+	r.owners[owner] = newTypes
+}
+
+func (r *EntityTypeRegistry) RemoveOwner(owner string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	oldTypes, exists := r.owners[owner]
+	if !exists {
+		return
+	}
+
+	for et := range oldTypes {
 		if r.types[et] <= 1 {
 			delete(r.types, et)
 		} else {
 			r.types[et]--
 		}
 	}
+	delete(r.owners, owner)
 }
 
 // Validate checks all entityType references in a ContentConfiguration against

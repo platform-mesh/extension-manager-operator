@@ -753,6 +753,7 @@ func TestProcess_ValidCC_UpdatesRegistryWithDefinedEntityTypes(t *testing.T) {
 
 	// Process a CC that defines a new entity type
 	cc := &cachev1alpha1.ContentConfiguration{
+		ObjectMeta: apimachinery.ObjectMeta{Name: "definer", UID: "uid-definer"},
 		Spec: cachev1alpha1.ContentConfigurationSpec{
 			InlineConfiguration: &cachev1alpha1.InlineConfiguration{
 				Content:     validJSONDefiningEntityType("newentity"),
@@ -771,4 +772,112 @@ func TestProcess_ValidCC_UpdatesRegistryWithDefinedEntityTypes(t *testing.T) {
 	known := registry.KnownTypes()
 	assert.True(t, known["newentity"], "registry should contain 'newentity' after processing CC that defines it")
 	assert.True(t, known["global"], "registry should always contain 'global'")
+}
+
+func TestProcess_IdempotentRegistryLoad(t *testing.T) {
+	reader := newFakeReader()
+	registry := validation.NewEntityTypeRegistry()
+
+	sub := NewContentConfigurationSubroutine(
+		validation.NewContentConfiguration(),
+		http.DefaultClient,
+		reader,
+		registry,
+	)
+
+	cc := &cachev1alpha1.ContentConfiguration{
+		ObjectMeta: apimachinery.ObjectMeta{Name: "test-cc", UID: "uid-test"},
+		Spec: cachev1alpha1.ContentConfigurationSpec{
+			InlineConfiguration: &cachev1alpha1.InlineConfiguration{
+				Content:     validJSONDefiningEntityType("project"),
+				ContentType: "json",
+			},
+		},
+	}
+
+	// Process twice
+	_, err := sub.Process(context.Background(), cc)
+	require.Nil(t, err)
+	_, err = sub.Process(context.Background(), cc)
+	require.Nil(t, err)
+
+	// Removing once should clean up completely
+	registry.RemoveOwner("uid-test")
+	assert.False(t, registry.KnownTypes()["project"], "project should be gone after single RemoveOwner")
+}
+
+func TestFinalize_RemovesFromRegistry(t *testing.T) {
+	reader := newFakeReader()
+	registry := validation.NewEntityTypeRegistry()
+
+	sub := NewContentConfigurationSubroutine(
+		validation.NewContentConfiguration(),
+		http.DefaultClient,
+		reader,
+		registry,
+	)
+
+	cc := &cachev1alpha1.ContentConfiguration{
+		ObjectMeta: apimachinery.ObjectMeta{Name: "to-delete", UID: "uid-delete"},
+		Spec: cachev1alpha1.ContentConfigurationSpec{
+			InlineConfiguration: &cachev1alpha1.InlineConfiguration{
+				Content:     validJSONDefiningEntityType("ephemeral"),
+				ContentType: "json",
+			},
+		},
+	}
+
+	// Process to populate registry
+	_, err := sub.Process(context.Background(), cc)
+	require.Nil(t, err)
+	assert.True(t, registry.KnownTypes()["ephemeral"])
+
+	// Finalize should remove from registry
+	result, err := sub.Finalize(context.Background(), cc)
+	require.Nil(t, err)
+	assert.True(t, result.IsContinue())
+	assert.False(t, registry.KnownTypes()["ephemeral"], "entity type should be removed after Finalize")
+}
+
+func TestFinalize_NilRegistry_NoOp(t *testing.T) {
+	sub := NewContentConfigurationSubroutine(
+		validation.NewContentConfiguration(),
+		http.DefaultClient,
+		nil,
+		nil,
+	)
+
+	cc := &cachev1alpha1.ContentConfiguration{
+		ObjectMeta: apimachinery.ObjectMeta{Name: "test", UID: "uid-test"},
+	}
+
+	result, err := sub.Finalize(context.Background(), cc)
+	require.Nil(t, err)
+	assert.True(t, result.IsContinue())
+}
+
+func TestFinalizers_ReturnsFinalizerWhenRegistryEnabled(t *testing.T) {
+	registry := validation.NewEntityTypeRegistry()
+	sub := NewContentConfigurationSubroutine(
+		validation.NewContentConfiguration(),
+		http.DefaultClient,
+		nil,
+		registry,
+	)
+
+	finalizers := sub.Finalizers(nil)
+	require.Len(t, finalizers, 1)
+	assert.Equal(t, "extension-manager.platform-mesh.io/entity-type-registry", finalizers[0])
+}
+
+func TestFinalizers_ReturnsNilWhenRegistryDisabled(t *testing.T) {
+	sub := NewContentConfigurationSubroutine(
+		validation.NewContentConfiguration(),
+		http.DefaultClient,
+		nil,
+		nil,
+	)
+
+	finalizers := sub.Finalizers(nil)
+	assert.Nil(t, finalizers)
 }
