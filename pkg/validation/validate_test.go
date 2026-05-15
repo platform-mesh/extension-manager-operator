@@ -434,62 +434,6 @@ func allErrorsContained(merr multierror.Error, expectedErrors []string) bool {
 	return true
 }
 
-func TestParseContentConfiguration(t *testing.T) {
-	cC := NewContentConfiguration()
-
-	tests := []struct {
-		name        string
-		input       string
-		contentType string
-		expectError bool
-		expectName  string
-	}{
-		{
-			name:        "valid JSON",
-			input:       `{"name": "test", "luigiConfigFragment": {"data": {"nodes": [{"entityType": "global"}]}}}`,
-			contentType: "json",
-			expectName:  "test",
-		},
-		{
-			name:        "valid YAML",
-			input:       "name: test\nluigiConfigFragment:\n  data:\n    nodes:\n    - entityType: global\n",
-			contentType: "yaml",
-			expectName:  "test",
-		},
-		{
-			name:        "unsupported content type",
-			input:       "test",
-			contentType: "xml",
-			expectError: true,
-		},
-		{
-			name:        "invalid JSON",
-			input:       `{not json`,
-			contentType: "json",
-			expectError: true,
-		},
-		{
-			name:        "invalid YAML",
-			input:       "!invalid",
-			contentType: "yaml",
-			expectError: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			cc, err := cC.ParseContentConfiguration([]byte(tt.input), tt.contentType)
-			if tt.expectError {
-				assert.Error(t, err)
-				assert.Nil(t, cc)
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tt.expectName, cc.Name)
-			}
-		})
-	}
-}
-
 func TestValidateEntityTypes(t *testing.T) {
 	cC := NewContentConfiguration()
 	registry := NewEntityTypeRegistry()
@@ -540,6 +484,13 @@ func TestValidateEntityTypes(t *testing.T) {
 			name:        "invalid JSON unmarshal",
 			input:       `{not json`,
 			contentType: "json",
+			expectError: true,
+			errorMsg:    "error unmarshalling",
+		},
+		{
+			name:        "invalid YAML",
+			input:       "!invalid: {{{",
+			contentType: "yaml",
 			expectError: true,
 			errorMsg:    "error unmarshalling",
 		},

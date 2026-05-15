@@ -120,6 +120,7 @@ func initServerEntityTypeRegistry(ctx context.Context) *validation.EntityTypeReg
 	}
 
 	loadRegistryFromCluster(ctx, k8sClient, registry)
+	log.Info().Int("entityTypes", len(registry.KnownTypes())).Msg("initialized server entity type registry")
 	go refreshRegistryPeriodically(ctx, k8sClient, registry)
 	return registry
 }
@@ -171,7 +172,7 @@ func loadRegistryFromCluster(ctx context.Context, k8sClient client.Reader, regis
 	}
 
 	registry.Bulkload(configs)
-	log.Info().Int("entityTypes", len(registry.KnownTypes())).Msg("initialized server entity type registry")
+	log.Debug().Int("entityTypes", len(registry.KnownTypes())).Msg("refreshed server entity type registry")
 }
 
 func refreshRegistryPeriodically(ctx context.Context, k8sClient client.Reader, registry *validation.EntityTypeRegistry) { // coverage-ignore

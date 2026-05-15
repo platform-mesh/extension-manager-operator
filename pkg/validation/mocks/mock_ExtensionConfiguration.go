@@ -22,65 +22,6 @@ func (_m *ExtensionConfiguration) EXPECT() *ExtensionConfiguration_Expecter {
 	return &ExtensionConfiguration_Expecter{mock: &_m.Mock}
 }
 
-// ParseContentConfiguration provides a mock function with given fields: input, contentType
-func (_m *ExtensionConfiguration) ParseContentConfiguration(input []byte, contentType string) (*validation.ContentConfiguration, error) {
-	ret := _m.Called(input, contentType)
-
-	if len(ret) == 0 {
-		panic("no return value specified for ParseContentConfiguration")
-	}
-
-	var r0 *validation.ContentConfiguration
-	var r1 error
-	if rf, ok := ret.Get(0).(func([]byte, string) (*validation.ContentConfiguration, error)); ok {
-		return rf(input, contentType)
-	}
-	if rf, ok := ret.Get(0).(func([]byte, string) *validation.ContentConfiguration); ok {
-		r0 = rf(input, contentType)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*validation.ContentConfiguration)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func([]byte, string) error); ok {
-		r1 = rf(input, contentType)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// ExtensionConfiguration_ParseContentConfiguration_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ParseContentConfiguration'
-type ExtensionConfiguration_ParseContentConfiguration_Call struct {
-	*mock.Call
-}
-
-// ParseContentConfiguration is a helper method to define mock.On call
-//   - input []byte
-//   - contentType string
-func (_e *ExtensionConfiguration_Expecter) ParseContentConfiguration(input interface{}, contentType interface{}) *ExtensionConfiguration_ParseContentConfiguration_Call {
-	return &ExtensionConfiguration_ParseContentConfiguration_Call{Call: _e.mock.On("ParseContentConfiguration", input, contentType)}
-}
-
-func (_c *ExtensionConfiguration_ParseContentConfiguration_Call) Run(run func(input []byte, contentType string)) *ExtensionConfiguration_ParseContentConfiguration_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].([]byte), args[1].(string))
-	})
-	return _c
-}
-
-func (_c *ExtensionConfiguration_ParseContentConfiguration_Call) Return(_a0 *validation.ContentConfiguration, _a1 error) *ExtensionConfiguration_ParseContentConfiguration_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *ExtensionConfiguration_ParseContentConfiguration_Call) RunAndReturn(run func([]byte, string) (*validation.ContentConfiguration, error)) *ExtensionConfiguration_ParseContentConfiguration_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // Validate provides a mock function with given fields: _a0, _a1
 func (_m *ExtensionConfiguration) Validate(_a0 []byte, _a1 string) (string, *multierror.Error) {
 	ret := _m.Called(_a0, _a1)

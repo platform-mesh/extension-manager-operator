@@ -129,19 +129,6 @@ func convertYAMLToJSON(yamlData []byte) ([]byte, error) {
 	return jsonData, nil
 }
 
-func (cC *contentConfiguration) ParseContentConfiguration(input []byte, contentType string) (*ContentConfiguration, error) {
-	rawJSON, err := toJSON(input, contentType)
-	if err != nil {
-		return nil, err
-	}
-
-	var cc ContentConfiguration
-	if err := json.Unmarshal(rawJSON, &cc); err != nil {
-		return nil, fmt.Errorf("error unmarshalling content configuration: %w", err)
-	}
-	return &cc, nil
-}
-
 func (cC *contentConfiguration) ValidateEntityTypes(input []byte, contentType string, registry *EntityTypeRegistry) *multierror.Error {
 	rawJSON, err := toJSON(input, contentType)
 	if err != nil {

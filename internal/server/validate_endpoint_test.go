@@ -161,8 +161,6 @@ func TestValidation_Error(t *testing.T) {
 	mockValidator.On("Validate", mock.Anything, mock.Anything).Return("", merr)
 	handler := NewHttpValidateHandler(log, mockValidator, nil)
 
-	// handler := NewHttpValidateHandler(log, validation.NewContentConfiguration(), nil)
-
 	reqBody := ERROR_INVALID_JSON_CONTENT2
 	req := httptest.NewRequest(http.MethodPost, "/validate", bytes.NewBufferString(reqBody))
 	w := httptest.NewRecorder()
@@ -223,8 +221,6 @@ func TestValidation_ErrorMarshallingValidatedResponse(t *testing.T) {
 	merr := &multierror.Error{Errors: []error{errors.New("error")}}
 	mockValidator.On("Validate", mock.Anything, mock.Anything).Return("{ field: }", merr)
 	handler := NewHttpValidateHandler(log, mockValidator, nil)
-
-	// handler := NewHttpValidateHandler(log, validation.NewContentConfiguration(), nil)
 
 	reqBody := ERROR_INVALID_JSON_CONTENT_MARSHALLINGVALIDATEDRESPONSE
 	req := httptest.NewRequest(http.MethodPost, "/validate", bytes.NewBufferString(reqBody))
@@ -293,11 +289,7 @@ func TestValidation_Error2(t *testing.T) {
 	log, _ := logger.New(logcfg)
 
 	mockValidator := mocks.NewExtensionConfiguration(t)
-	// merr := &multierror.Error{Errors: []error{errors.New("error")}}
-	// mockValidator.On("Validate", mock.Anything, mock.Anything).Return("", merr)
 	handler := NewHttpValidateHandler(log, mockValidator, nil)
-
-	// handler := NewHttpValidateHandler(log, validation.NewContentConfiguration(), nil)
 
 	reqBody := ERROR_INVALID_JSON_CONTENT3
 	req := httptest.NewRequest(http.MethodPost, "/validate", bytes.NewBufferString(reqBody))
