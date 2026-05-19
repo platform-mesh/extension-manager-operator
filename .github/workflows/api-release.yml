@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   create-api-version:
-    uses: platform-mesh/.github/.github/workflows/job-create-version.yml@main
+    uses: platform-mesh/.github/.github/workflows/job-create-version.yml@9ddacafbe3260312cb1cc3f9974ad2fece8effe0 # main
     secrets: inherit
     with:
       apiPackagePath: api
