@@ -21,7 +21,7 @@ require (
 	github.com/kcp-dev/sdk v0.31.1
 	github.com/pkg/errors v0.9.1
 	github.com/platform-mesh/extension-manager-operator/api v0.0.0-local
-	github.com/platform-mesh/golang-commons v0.16.16
+	github.com/platform-mesh/golang-commons v0.16.17
 	github.com/platform-mesh/subroutines v0.3.3
 	github.com/prometheus/client_golang v1.23.2
 	github.com/rs/cors v1.11.1
@@ -120,7 +120,7 @@ require (
 	golang.org/x/time v0.15.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.5.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260414002931-afd174a4e478 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260414002931-afd174a4e478 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260420184626-e10c466a9529 // indirect
 	google.golang.org/grpc v1.81.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect
