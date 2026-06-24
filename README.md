@@ -1,5 +1,5 @@
-> [!WARNING]
-> This Repository is under development and not ready for productive use. It is in an alpha stage. That means APIs and concepts may change on short notice including breaking changes or complete removal of apis.
+[[> [!WARNING]
+> This Repository code was migrated to [platform-mesh/platform-mesh](https://github.com/platform-mesh/platform-mesh).
 
 # Platform Mesh - Extension Manager Operator
 
