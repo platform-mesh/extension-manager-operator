@@ -15,6 +15,7 @@ func CreateRouter(
 	isLocal bool,
 	log *logger.Logger,
 	validator validation.ExtensionConfiguration,
+	registry *validation.EntityTypeRegistry,
 ) *chi.Mux {
 	router := chi.NewRouter()
 
@@ -33,7 +34,7 @@ func CreateRouter(
 		router.Use(rl.Handler)
 	}
 
-	vh := NewHttpValidateHandler(log, validator)
+	vh := NewHttpValidateHandler(log, validator, registry)
 
 	router.MethodFunc(http.MethodPost, "/validate", vh.HandlerValidate)
 	router.MethodFunc(http.MethodGet, "/healthz", vh.HandlerHealthz)
